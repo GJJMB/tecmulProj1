@@ -1,20 +1,42 @@
 using UnityEngine;
+using System.Collections.Generic;
+using System.Text;
+
+public class OurTree<T>
+{
+    public T Value;
+    public List<OurTree<T>> Children = new List<OurTree<T>>();
+
+    public OurTree(T value = default)
+    {
+        Value = value;
+    }
+
+    public OurTree<T> AddChild(T value)
+    {
+        var child = new OurTree<T>(value);
+        Children.Add(child);
+        return child;
+    }
+}
 
 public static class TreeMazeBuilder
 {
-    public static int[,] Build<T>(Tree<T> root, out int rows, out int cols)
+    public static int[,] Build<T>(OurTree<T> root, out int rows, out int cols)
     {
-        var coords = new Dictionary<Tree<T>, (int r, int c)>();
+        var coords = new Dictionary<OurTree<T>, (int r, int c)>();
         AssignCoords(root, coords);
 
         int maxR = 0, maxC = 0;
         foreach (var (r, c) in coords.Values)
         {
-            if (r > maxR) { maxR = r; }
-            if (c > maxC) { maxC = c; }
+            if (r > maxR) maxR = r;
+            if (c > maxC) maxC = c;
         }
+
         rows = maxR + 1;
         cols = maxC + 1;
+
         int mRows = 2 * rows - 1;
         int mCols = 2 * cols - 1;
         var m = new int[mRows, mCols];
@@ -26,19 +48,19 @@ public static class TreeMazeBuilder
 
         return m;
     }
-    private static int SubtreeWidth<T>(Tree<T> node)
+
+    private static int SubtreeWidth<T>(OurTree<T> node)
     {
         if (node.Children.Count == 0) return 1;
         int w = 0;
-        foreach (var c in node.Children) w += SubtreeWidth(c);
+        foreach (var child in node.Children) w += SubtreeWidth(child);
         return w;
     }
-
     private static void AssignCoords<T>(
-        Tree<T> root,
-        Dictionary<Tree<T>, (int r, int c)> coords)
+        OurTree<T> root,
+        Dictionary<OurTree<T>, (int r, int c)> coords)
     {
-        void Recurse(Tree<T> node, int depth, int colOffset)
+        void Recurse(OurTree<T> node, int depth, int colOffset)
         {
             int width = SubtreeWidth(node);
             int col = colOffset + width / 2;
@@ -54,9 +76,10 @@ public static class TreeMazeBuilder
 
         Recurse(root, 0, 0);
     }
+
     private static void OpenEdges<T>(
-        Tree<T> node,
-        Dictionary<Tree<T>, (int r, int c)> coords,
+        OurTree<T> node,
+        Dictionary<OurTree<T>, (int r, int c)> coords,
         int[,] m)
     {
         var (pr, pc) = coords[node];
@@ -65,10 +88,10 @@ public static class TreeMazeBuilder
             var (cr, cc) = coords[child];
             CarveHorizontal(m, pr, pc, cc);
             CarveVertical(m, pr, cr, cc);
-
             OpenEdges(child, coords, m);
         }
     }
+
     private static void CarveHorizontal(int[,] m, int r, int c1, int c2)
     {
         int step = c1 <= c2 ? 1 : -1;
@@ -77,6 +100,7 @@ public static class TreeMazeBuilder
         for (int c = c1; c != c2; c += step)
             m[r * 2, c * 2 + step] = 1;
     }
+
     private static void CarveVertical(int[,] m, int r1, int r2, int c)
     {
         for (int r = r1; r <= r2; r++)
@@ -98,47 +122,65 @@ public static class TreeMazeBuilder
         return sb.ToString();
     }
 
-    /// <summary></summary>
     public static void PrintMatrix(int[,] m)
     {
         int mRows = m.GetLength(0);
         int mCols = m.GetLength(1);
-        Console.Write("   ");
-        for (int c = 0; c < mCols; c++) Console.Write($"{c,2}");
-        Console.WriteLine();
+        Debug.Log("Matrix:");
         for (int r = 0; r < mRows; r++)
         {
-            Console.Write($"{r,2} ");
+            var row = new StringBuilder($"{r,2} ");
             for (int c = 0; c < mCols; c++)
-                Console.Write($"{m[r, c],2}");
-            Console.WriteLine();
+                row.Append($"{m[r, c],2}");
+            Debug.Log(row.ToString());
         }
     }
 }
 
-
-
-public class Mazegen
+public class Mazegen : MonoBehaviour
 {
-    public static void Main()
+    [Header("Maze Settings")]
+    [SerializeField] private int treeDepth = 4;
+    [SerializeField] private int treeBranches = 3;
+
+    [Header("Spawning")]
+    [SerializeField] private GameObject wallPrefab;
+    [SerializeField] private float spacing = 1.0f;
+    [SerializeField] private Transform mazeContainer;
+
+    void Start()
     {
-        TreeMazeBuilder tree = new();
-        TreeMazeBuilder t = new();
-        SpawnMaze(t.Build(tree, 35, 35));
+        
+        OurTree<int> tree = BuildSampleTree(treeDepth, treeBranches);
+        int[,] maze = TreeMazeBuilder.Build(tree, out int rows, out int cols);
+        Debug.Log($"Maze grid: {rows} logical rows, {cols} logical cols " +
+                  $"→ {maze.GetLength(0)} × {maze.GetLength(1)} cells");
+        SpawnMaze(maze);
+    }
+    private OurTree<int> BuildSampleTree(int depth, int branches, int label = 0)
+    {
+        var node = new OurTree<int>(label);
+        if (depth > 1)
+        {
+            for (int i = 0; i < branches; i++)
+                node.Children.Add(BuildSampleTree(depth - 1, branches, label * branches + i + 1));
+        }
+        return node;
     }
     private void SpawnMaze(int[,] m)
     {
         int mRows = m.GetLength(0);
         int mCols = m.GetLength(1);
-        float cartesianZ = 1.0f;
+        const float cartesianY = 1.0f;
+
         for (int r = 0; r < mRows; r++)
         {
             for (int c = 0; c < mCols; c++)
             {
                 if (m[r, c] == 0)
                 {
-                    Vector3 position = new Vector3(r * spacing, cartesianZ, c * spacing);
-                    Instantiate(wallPrefab, position, Quaternion.identity, mazeContainer.transform);
+                    Vector3 position = new Vector3(c * spacing, cartesianY, r * spacing);
+                    Instantiate(wallPrefab, position, Quaternion.identity, mazeContainer);
                 }
             }
         }
