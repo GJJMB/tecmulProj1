@@ -116,31 +116,31 @@ public static class TreeMazeBuilder
     }
 }
 
-private void SpawnMaze(int[,] m)
+
+
+public class Mazegen
 {
-    int mRows = m.GetLength(0);
-    int mCols = m.GetLength(1);
-    // According to your logic:
-    // Regular Y is Cartesian Z (we'll call this the floor level)
-    float cartesianZ = 1.0f; 
-    for (int r = 0; r < mRows; r++)
+    public static void Main()
     {
-        for (int c = 0; c < mCols; c++)
+        TreeMazeBuilder tree = new();
+        TreeMazeBuilder t = new();
+        SpawnMaze(t.Build(tree, 35, 35));
+    }
+    private void SpawnMaze(int[,] m)
+    {
+        int mRows = m.GetLength(0);
+        int mCols = m.GetLength(1);
+        float cartesianZ = 1.0f;
+        for (int r = 0; r < mRows; r++)
         {
-            // 0 = Block (Wall)
-            if (m[r, c] == 0)
+            for (int c = 0; c < mCols; c++)
             {
-                // Mapping based on your prompt:
-                // Front/Back = X (using Row)
-                // Up/Down (Height) = Y (Constant)
-                // Right/Left = Z (using Column)
-                Vector3 position = new Vector3(r * spacing, cartesianZ, c * spacing);
-                Instantiate(wallPrefab, position, Quaternion.identity, mazeContainer.transform);
+                if (m[r, c] == 0)
+                {
+                    Vector3 position = new Vector3(r * spacing, cartesianZ, c * spacing);
+                    Instantiate(wallPrefab, position, Quaternion.identity, mazeContainer.transform);
+                }
             }
         }
     }
-} 
-
-public static class mazegen{
-
 }
