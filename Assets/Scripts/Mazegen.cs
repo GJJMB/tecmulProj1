@@ -145,10 +145,12 @@ public class Mazegen : MonoBehaviour
     [SerializeField] private GameObject wallPrefab;
     [SerializeField] private float spacing = 1.0f;
     [SerializeField] private Transform mazeContainer;
+    [SerializeField] private Vector3 mazeOrigin = Vector3.zero; // World-space anchor for the maze
 
     [Header("Camera Framing")]
     [SerializeField] private bool autoFrameCamera = true;
     [SerializeField] private float cameraHeightMultiplier = 1.2f;
+
     private int[,] _maze;
     private int _mRows, _mCols;
 
@@ -167,6 +169,7 @@ public class Mazegen : MonoBehaviour
         if (autoFrameCamera)
             FrameCamera();
     }
+
     private OurTree<int> BuildSampleTree(int depth, int branches, int label = 0)
     {
         var node = new OurTree<int>(label);
@@ -175,20 +178,22 @@ public class Mazegen : MonoBehaviour
                 node.Children.Add(BuildSampleTree(depth - 1, branches, label * branches + i + 1));
         return node;
     }
+
     private void SpawnMaze(int[,] m)
     {
         int mRows = m.GetLength(0);
         int mCols = m.GetLength(1);
         const float wallY = 1.0f;
-
+    
         for (int r = 0; r < mRows; r++)
             for (int c = 0; c < mCols; c++)
-                if (m[r, c] == 0)
+                if (m[r, c] == 0) // ← was 1, now 0: spawn walls in empty space
                 {
-                    Vector3 pos = new Vector3(c * spacing, wallY, r * spacing);
+                    Vector3 pos = mazeOrigin + new Vector3(c * spacing, wallY, r * spacing);
                     Instantiate(wallPrefab, pos, Quaternion.identity, mazeContainer);
                 }
     }
+
     private void FrameCamera()
     {
         Camera cam = Camera.main;
@@ -197,18 +202,20 @@ public class Mazegen : MonoBehaviour
             Debug.LogWarning("[Mazegen] No MainCamera found – skipping auto-frame.");
             return;
         }
+
         float worldWidth = (_mCols - 1) * spacing;
         float worldDepth = (_mRows - 1) * spacing;
-        Vector3 centre = new Vector3(worldWidth * 0.5f, 0f, worldDepth * 0.5f);
+
         float halfFov = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
         float halfExtent = Mathf.Max(worldWidth, worldDepth) * 0.5f;
         float camHeight = (halfExtent / Mathf.Tan(halfFov)) * cameraHeightMultiplier;
 
-        cam.transform.position = centre + Vector3.up * camHeight;
+        cam.transform.position = mazeOrigin + new Vector3(worldWidth * 0.5f, camHeight, worldDepth * 0.5f);
         cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 
         Debug.Log($"[Mazegen] Camera framed at {cam.transform.position}, height={camHeight:F1}");
     }
+
     private void OnDrawGizmos()
     {
         OurTree<int> previewTree = BuildSampleTree(treeDepth, treeBranches);
@@ -216,7 +223,7 @@ public class Mazegen : MonoBehaviour
         int mRows = m.GetLength(0);
         int mCols = m.GetLength(1);
 
-        Vector3 origin = transform.position;
+        Vector3 origin = transform.position + mazeOrigin;
 
         for (int r = 0; r < mRows; r++)
         {
@@ -224,18 +231,19 @@ public class Mazegen : MonoBehaviour
             {
                 Vector3 pos = origin + new Vector3(c * spacing, 1f, r * spacing);
 
-                if (m[r, c] == 0)
+                if (m[r, c] == 0) // Wall cell — draw solid cube
                 {
-                    Gizmos.color = new Color(0.2f, 0.9f, 0.3f, 0.6f);
+                    Gizmos.color = new Color(1f, 1f, 0.2f, 0.6f);
                     Gizmos.DrawCube(pos, Vector3.one * spacing * 0.9f);
                 }
-                else
+                else // Path cell — draw wire outline
                 {
-                    Gizmos.color = new Color(1f, 1f, 0.2f, 0.15f);
+                    Gizmos.color = new Color(0.2f, 0.9f, 0.3f, 0.15f);
                     Gizmos.DrawWireCube(pos, Vector3.one * spacing * 0.9f);
                 }
             }
         }
+
         float w = (mCols - 1) * spacing;
         float d = (mRows - 1) * spacing;
         Gizmos.color = Color.cyan;
