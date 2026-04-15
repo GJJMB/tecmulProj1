@@ -7,11 +7,11 @@ using UnityEngine;
 /// Uses Recursive Backtracking (Depth-First Search) algorithm.
 ///
 /// HOW TO USE:
-/// 1. Create an empty GameObject in your scene and attach this script.
-/// 2. Create a Cube prefab for walls, assign it to "wallPrefab".
-/// 3. Create a Cube prefab for the floor, assign it to "floorPrefab" (optional).
-/// 4. Press Play — the maze generates automatically.
-/// 5. Adjust Width, Height, and Cell Size in the Inspector.
+/// 1. Create an empty GameObject and attach this script.
+/// 2. Assign a Cube prefab to "wallPrefab" (and optionally "floorPrefab").
+/// 3. Optionally assign custom prefabs to "entryMarkerPrefab" / "exitMarkerPrefab".
+///    If left empty, colored primitive pillars are created automatically.
+/// 4. Press Play — the maze generates with a green ENTRY and red EXIT marker.
 /// </summary>
 public class MazeGenerator : MonoBehaviour
 {
@@ -35,8 +35,21 @@ public class MazeGenerator : MonoBehaviour
     [Tooltip("Optional floor tile prefab")]
     public GameObject floorPrefab;
 
+    [Tooltip("Optional custom Entry marker prefab. If null, a green pillar is created automatically.")]
+    public GameObject entryMarkerPrefab;
+
+    [Tooltip("Optional custom Exit marker prefab. If null, a red pillar is created automatically.")]
+    public GameObject exitMarkerPrefab;
+
+    [Tooltip("Player prefab to spawn at the entry. Should have PlayerController script.")]
+    public GameObject playerPrefab;
+
+    [Header("Entry / Exit Colors (used when no prefab is assigned)")]
+    public Color entryColor = new Color(0.1f, 0.9f, 0.2f);   // bright green
+    public Color exitColor  = new Color(0.9f, 0.15f, 0.1f);  // bright red
+
     [Header("Generation")]
-    [Tooltip("Seed for reproducible mazes (0 = random)")]
+    [Tooltip("Seed for reproducible mazes (0 = random each run)")]
     public int seed = 0;
 
     [Tooltip("Visualize generation step-by-step")]
@@ -45,47 +58,51 @@ public class MazeGenerator : MonoBehaviour
     [Tooltip("Delay between steps when animating (seconds)")]
     public float animationDelay = 0.05f;
 
-    // --- Internal State ---
-    private bool[,] visited;
-    private bool[,,] walls; // walls[x, y, dir]: 0=North, 1=East, 2=South, 3=West
+
+    // ── Public read-only access to portal world positions ────────────────────
+    public Vector3 EntryWorldPosition { get; private set; }
+    public Vector3 ExitWorldPosition  { get; private set; }
+
+    // ── Internal state ───────────────────────────────────────────────────────
+    private bool[,]  visited;
+    private bool[,,] walls;   // walls[x, y, dir] — 0=N  1=E  2=S  3=W
+
     private GameObject mazeParent;
 
-    // Directions: North, East, South, West
-    private static readonly int[] dx = { 0, 1, 0, -1 };
-    private static readonly int[] dy = { 1, 0, -1, 0 };
-    private static readonly int[] opposite = { 2, 3, 0, 1 }; // Opposite direction index
+    private static readonly int[] dx       = {  0,  1,  0, -1 };
+    private static readonly int[] dy       = {  1,  0, -1,  0 };
+    private static readonly int[] opposite = {  2,  3,  0,  1 };
 
-    void Start()
-    {
-        GenerateMaze();
-    }
+    // Entry: bottom-left cell (0,0), opening faces South
+    // Exit:  top-right cell (w-1, h-1), opening faces North
+    private int EntryCellX => 0;
+    private int EntryCellY => 0;
+    private int ExitCellX  => width  - 1;
+    private int ExitCellY  => height - 1;
 
-    /// <summary>
-    /// Public entry point — call this to (re)generate the maze.
-    /// </summary>
+    // ─────────────────────────────────────────────────────────────────────────
+    /// <summary>Exposes wall state for external grid queries.</summary>
+    public bool HasWall(int x, int y, int dir) => walls[x, y, dir];
+
+    void Start() => GenerateMaze();
+
+    /// <summary>Call this at any time to (re)generate the maze.</summary>
     public void GenerateMaze()
     {
-        // Clean up previous maze
-        if (mazeParent != null)
-            Destroy(mazeParent);
+        if (mazeParent != null) Destroy(mazeParent);
 
         mazeParent = new GameObject("Maze");
         mazeParent.transform.SetParent(transform);
 
-        // Seed the RNG
-        if (seed == 0)
-            Random.InitState(System.Environment.TickCount);
-        else
-            Random.InitState(seed);
+        Random.InitState(seed == 0 ? System.Environment.TickCount : seed);
 
-        // Initialize grid — all walls up
         visited = new bool[width, height];
-        walls = new bool[width, height, 4]; // true = wall exists
+        walls   = new bool[width, height, 4];
 
-        for (int x = 0; x < width; x++)
-            for (int y = 0; y < height; y++)
-                for (int d = 0; d < 4; d++)
-                    walls[x, y, d] = true;
+        for (int x = 0; x < width;  x++)
+        for (int y = 0; y < height; y++)
+        for (int d = 0; d < 4;      d++)
+            walls[x, y, d] = true;
 
         if (animateGeneration)
             StartCoroutine(CarvePassagesAnimated(0, 0));
@@ -96,142 +113,199 @@ public class MazeGenerator : MonoBehaviour
         }
     }
 
-    // ──────────────────────────────────────────
-    //  ALGORITHM: Recursive Backtracking (DFS)
-    // ──────────────────────────────────────────
+    // ── Algorithm: Recursive Backtracking (DFS) ───────────────────────────────
 
     void CarvePassages(int cx, int cy)
     {
         visited[cx, cy] = true;
-
-        // Shuffle directions
-        int[] dirs = ShuffledDirections();
-
-        foreach (int dir in dirs)
+        foreach (int dir in ShuffledDirections())
         {
-            int nx = cx + dx[dir];
-            int ny = cy + dy[dir];
-
-            if (InBounds(nx, ny) && !visited[nx, ny])
-            {
-                // Remove wall between current cell and neighbour
-                walls[cx, cy, dir] = false;
-                walls[nx, ny, opposite[dir]] = false;
-
-                CarvePassages(nx, ny);
-            }
+            int nx = cx + dx[dir], ny = cy + dy[dir];
+            if (!InBounds(nx, ny) || visited[nx, ny]) continue;
+            walls[cx, cy, dir]           = false;
+            walls[nx, ny, opposite[dir]] = false;
+            CarvePassages(nx, ny);
         }
     }
 
     IEnumerator CarvePassagesAnimated(int cx, int cy)
     {
         visited[cx, cy] = true;
-        int[] dirs = ShuffledDirections();
-
-        foreach (int dir in dirs)
+        foreach (int dir in ShuffledDirections())
         {
-            int nx = cx + dx[dir];
-            int ny = cy + dy[dir];
-
-            if (InBounds(nx, ny) && !visited[nx, ny])
-            {
-                walls[cx, cy, dir] = false;
-                walls[nx, ny, opposite[dir]] = false;
-
-                yield return new WaitForSeconds(animationDelay);
-
-                yield return StartCoroutine(CarvePassagesAnimated(nx, ny));
-            }
+            int nx = cx + dx[dir], ny = cy + dy[dir];
+            if (!InBounds(nx, ny) || visited[nx, ny]) continue;
+            walls[cx, cy, dir]           = false;
+            walls[nx, ny, opposite[dir]] = false;
+            yield return new WaitForSeconds(animationDelay);
+            yield return StartCoroutine(CarvePassagesAnimated(nx, ny));
         }
-
-        // Rebuild mesh each step when animating
         BuildMesh();
     }
 
-    // ──────────────────────────────────────────
-    //  MESH BUILDING
-    // ──────────────────────────────────────────
+    // ── Mesh Building ─────────────────────────────────────────────────────────
 
     void BuildMesh()
     {
-        // Clear previous geometry
         foreach (Transform child in mazeParent.transform)
             Destroy(child.gameObject);
 
-        float wallThickness = cellSize * 0.1f;
+        float wt       = cellSize * 0.1f;  // wall thickness
         float halfCell = cellSize * 0.5f;
 
         for (int x = 0; x < width; x++)
+        for (int y = 0; y < height; y++)
         {
-            for (int y = 0; y < height; y++)
-            {
-                Vector3 cellCenter = new Vector3(x * cellSize, 0, y * cellSize);
+            Vector3 cc = CellCenter(x, y);
 
-                // Floor tile
-                if (floorPrefab != null)
-                {
-                    GameObject floor = Instantiate(floorPrefab, mazeParent.transform);
-                    floor.name = $"Floor_{x}_{y}";
-                    floor.transform.position = cellCenter;
-                    floor.transform.localScale = new Vector3(cellSize, 0.1f, cellSize);
-                }
+            // Floor tile
+            if (floorPrefab != null)
+                Spawn(floorPrefab, $"Floor_{x}_{y}", cc, new Vector3(cellSize, 0.1f, cellSize));
 
-                // North wall (along +Z edge)
-                if (walls[x, y, 0])
-                    SpawnWall($"Wall_N_{x}_{y}",
-                        cellCenter + new Vector3(0, wallHeight * 0.5f, halfCell),
-                        new Vector3(cellSize + wallThickness, wallHeight, wallThickness));
+            // North wall (+Z edge)
+            if (walls[x, y, 0])
+                SpawnWall($"Wall_N_{x}_{y}",
+                    cc + new Vector3(0, wallHeight * 0.5f, halfCell),
+                    new Vector3(cellSize + wt, wallHeight, wt));
 
-                // East wall (along +X edge)
-                if (walls[x, y, 1])
-                    SpawnWall($"Wall_E_{x}_{y}",
-                        cellCenter + new Vector3(halfCell, wallHeight * 0.5f, 0),
-                        new Vector3(wallThickness, wallHeight, cellSize + wallThickness));
+            // East wall (+X edge)
+            if (walls[x, y, 1])
+                SpawnWall($"Wall_E_{x}_{y}",
+                    cc + new Vector3(halfCell, wallHeight * 0.5f, 0),
+                    new Vector3(wt, wallHeight, cellSize + wt));
 
-                // South wall — only spawn on the bottom border to avoid duplicates
-                if (y == 0 && walls[x, y, 2])
-                    SpawnWall($"Wall_S_{x}_{y}",
-                        cellCenter + new Vector3(0, wallHeight * 0.5f, -halfCell),
-                        new Vector3(cellSize + wallThickness, wallHeight, wallThickness));
+            // South wall — only on bottom border row to avoid duplicates
+            if (y == 0 && walls[x, y, 2])
+                SpawnWall($"Wall_S_{x}_{y}",
+                    cc + new Vector3(0, wallHeight * 0.5f, -halfCell),
+                    new Vector3(cellSize + wt, wallHeight, wt));
 
-                // West wall — only spawn on the left border to avoid duplicates
-                if (x == 0 && walls[x, y, 3])
-                    SpawnWall($"Wall_W_{x}_{y}",
-                        cellCenter + new Vector3(-halfCell, wallHeight * 0.5f, 0),
-                        new Vector3(wallThickness, wallHeight, cellSize + wallThickness));
-            }
+            // West wall — only on left border column to avoid duplicates
+            if (x == 0 && walls[x, y, 3])
+                SpawnWall($"Wall_W_{x}_{y}",
+                    cc + new Vector3(-halfCell, wallHeight * 0.5f, 0),
+                    new Vector3(wt, wallHeight, cellSize + wt));
         }
 
-        // Mark entrance and exit
-        MarkEntrance();
-        MarkExit();
+        OpenEntryExit();
+        SpawnMarkers();
+        SpawnPlayer();
     }
+
+    // ── Entry / Exit ──────────────────────────────────────────────────────────
+
+    /// <summary>Opens the wall gaps that form the physical entry and exit.</summary>
+    void OpenEntryExit()
+    {
+        walls[EntryCellX, EntryCellY, 2] = false;  // Entry: south wall of (0,0)
+        walls[ExitCellX,  ExitCellY,  0] = false;  // Exit:  north wall of top-right cell
+    }
+
+    /// <summary>
+    /// Places a visible marker at each opening.
+    /// Uses the assigned prefab if set, otherwise auto-creates a colored cylinder pillar.
+    /// </summary>
+    void SpawnMarkers()
+    {
+        float halfCell = cellSize * 0.5f;
+        float pillarH  = wallHeight * 1.4f;   // taller than walls so it stands out
+
+        // Entry sits just outside the south opening of cell (0,0)
+        Vector3 entryPos = CellCenter(EntryCellX, EntryCellY)
+                         + new Vector3(0, pillarH * 0.5f, -halfCell - cellSize * 0.35f);
+
+        // Exit sits just outside the north opening of the top-right cell
+        Vector3 exitPos  = CellCenter(ExitCellX, ExitCellY)
+                         + new Vector3(0, pillarH * 0.5f,  halfCell + cellSize * 0.35f);
+
+        EntryWorldPosition = entryPos;
+        ExitWorldPosition  = exitPos;
+
+        SpawnPortalMarker("Entry", entryPos, entryColor, entryMarkerPrefab, pillarH);
+        SpawnPortalMarker("Exit",  exitPos,  exitColor,  exitMarkerPrefab,  pillarH);
+    }
+
+    void SpawnPortalMarker(string label, Vector3 pos, Color col, GameObject prefab, float pillarH)
+    {
+        GameObject marker;
+
+        if (prefab != null)
+        {
+            marker = Instantiate(prefab, mazeParent.transform);
+            marker.transform.position = pos;
+        }
+        else
+        {
+            // Auto-create: a glowing cylinder pillar
+            marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            marker.transform.SetParent(mazeParent.transform);
+            marker.transform.position   = pos;
+            marker.transform.localScale = new Vector3(cellSize * 0.22f, pillarH * 0.5f, cellSize * 0.22f);
+
+            ApplyEmissiveMaterial(marker, col);
+
+            // Floating disc above the pillar as a cap / beacon
+            GameObject cap = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cap.transform.SetParent(mazeParent.transform);
+            cap.transform.position   = pos + Vector3.up * (pillarH * 0.5f + 0.05f);
+            cap.transform.localScale = new Vector3(cellSize * 0.45f, 0.06f, cellSize * 0.45f);
+            ApplyEmissiveMaterial(cap, col);
+            Destroy(cap.GetComponent<Collider>());
+        }
+
+        marker.name = $"Marker_{label}";
+        Destroy(marker.GetComponent<Collider>()); // markers are visual only
+    }
+
+    void SpawnPlayer()
+    {
+        if (playerPrefab != null)
+        {
+            GameObject player = Instantiate(playerPrefab, mazeParent.transform);
+            Vector3 spawnPos = CellCenter(EntryCellX, EntryCellY) + Vector3.up * 0.5f;
+            player.transform.position = spawnPos;
+            player.name = "Player";
+
+            // Assign the grid reference if PlayerController is present
+            PlayerController pc = player.GetComponent<PlayerController>();
+            if (pc != null)
+            {
+                pc.grid = GetComponent<MazeGridController>();
+            }
+        }
+    }
+
+    /// <summary>Creates and assigns a Standard material with emission to a GameObject.</summary>
+    void ApplyEmissiveMaterial(GameObject go, Color col)
+    {
+        Renderer rend = go.GetComponent<Renderer>();
+        if (rend == null) return;
+
+        Material mat = new Material(Shader.Find("Standard"));
+        mat.color = col;
+        mat.EnableKeyword("_EMISSION");
+        mat.SetColor("_EmissionColor", col * 0.7f);
+        rend.material = mat;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    Vector3 CellCenter(int x, int y) =>
+        transform.position + new Vector3(x * cellSize, 0, y * cellSize);
 
     void SpawnWall(string wallName, Vector3 position, Vector3 scale)
     {
         if (wallPrefab == null) return;
-
-        GameObject wall = Instantiate(wallPrefab, mazeParent.transform);
-        wall.name = wallName;
-        wall.transform.position = position;
-        wall.transform.localScale = scale;
+        Spawn(wallPrefab, wallName, position, scale);
     }
 
-    void MarkEntrance()
+    void Spawn(GameObject prefab, string objName, Vector3 position, Vector3 scale)
     {
-        // Remove south wall of cell (0,0) as entrance
-        walls[0, 0, 2] = false;
+        GameObject go = Instantiate(prefab, mazeParent.transform);
+        go.name = objName;
+        go.transform.position   = position;
+        go.transform.localScale = scale;
     }
-
-    void MarkExit()
-    {
-        // Remove north wall of top-right cell as exit
-        walls[width - 1, height - 1, 0] = false;
-    }
-
-    // ──────────────────────────────────────────
-    //  HELPERS
-    // ──────────────────────────────────────────
 
     bool InBounds(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
 
@@ -247,15 +321,26 @@ public class MazeGenerator : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    // Draw cell grid in Scene view for debugging
     void OnDrawGizmos()
     {
-        Gizmos.color = new Color(0.2f, 0.8f, 0.4f, 0.3f);
-        for (int x = 0; x < width; x++)
-            for (int y = 0; y < height; y++)
-                Gizmos.DrawWireCube(
-                    transform.position + new Vector3(x * cellSize, 0, y * cellSize),
-                    new Vector3(cellSize, 0.1f, cellSize));
+        // Cell grid
+        Gizmos.color = new Color(0.2f, 0.8f, 0.4f, 0.25f);
+        for (int x = 0; x < width;  x++)
+        for (int y = 0; y < height; y++)
+            Gizmos.DrawWireCube(CellCenter(x, y), new Vector3(cellSize, 0.1f, cellSize));
+
+        float hs = cellSize * 0.5f;
+
+        // Entry gizmo
+        Gizmos.color = entryColor;
+        Gizmos.DrawSphere(
+            transform.position + new Vector3(EntryCellX * cellSize, wallHeight, -hs), 0.35f);
+
+        // Exit gizmo
+        Gizmos.color = exitColor;
+        Gizmos.DrawSphere(
+            transform.position + new Vector3(ExitCellX * cellSize, wallHeight,
+                                             ExitCellY * cellSize + hs), 0.35f);
     }
 #endif
 }
