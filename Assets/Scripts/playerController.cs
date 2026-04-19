@@ -20,6 +20,9 @@ public class PlayerController : MonoBehaviour
 
     [Header("Events")]
     public UnityEvent onReachedExit;
+    
+    [Header("Win Screen")]
+    public WinScreen winScreen;
 
     // ── State ────────────────────────────────────────────────────────────────
     private int _cellX, _cellY;
@@ -78,12 +81,16 @@ public class PlayerController : MonoBehaviour
 
         // Win check
         if (nx == grid.Generator.width - 1 && ny == grid.Generator.height - 1)
+        {
             onReachedExit.Invoke();
+            OnReachedExit();
+        }
     }
 
     private void OnMovePerformed(InputAction.CallbackContext context)
     {
         if (_moving) return;
+        if (PauseMenu.IsPaused) return;
 
         Vector2 move = context.ReadValue<Vector2>();
         if (move == Vector2.zero) return;
@@ -115,6 +122,13 @@ public class PlayerController : MonoBehaviour
     // ── Current cell accessors (useful for HUD / minimap) ────────────────────
     public int CellX => _cellX;
     public int CellY => _cellY;
+
+    /// <summary>Call this to trigger the win screen (can be hooked to onReachedExit event).</summary>
+    public void OnReachedExit()
+    {
+        if (winScreen != null)
+            winScreen.ShowWinScreen();
+    }
 
     void OnDestroy()
     {

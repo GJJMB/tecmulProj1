@@ -35,7 +35,13 @@ public class MazeGenerator : MonoBehaviour
     [Tooltip("Optional floor tile prefab")]
     public GameObject floorPrefab;
 
-    [Tooltip("Optional custom Entry marker prefab. If null, a green pillar is created automatically.")]
+    [Tooltip("Optional custom Entry floor prefab. If null, the entry floor uses the normal floor prefab with a colored marker.")]
+    public GameObject entryFloorPrefab;
+
+    [Tooltip("Optional custom Exit floor prefab. If null, the exit floor uses the normal floor prefab with a colored marker.")]
+    public GameObject exitFloorPrefab;
+
+    [Tooltip("Optional custom Entry marker prefab. If null, a green floor marker is created automatically.")]
     public GameObject entryMarkerPrefab;
 
     [Tooltip("Optional custom Exit marker prefab. If null, a red pillar is created automatically.")]
@@ -159,8 +165,23 @@ public class MazeGenerator : MonoBehaviour
             Vector3 cc = CellCenter(x, y);
 
             // Floor tile
-            if (floorPrefab != null)
-                Spawn(floorPrefab, $"Floor_{x}_{y}", cc, new Vector3(cellSize, 0.1f, cellSize));
+            GameObject floorSource = floorPrefab;
+            Color? floorColor = null;
+            bool isEntry = x == EntryCellX && y == EntryCellY;
+            bool isExit  = x == ExitCellX  && y == ExitCellY;
+
+            if (isEntry)
+            {
+                floorSource = entryFloorPrefab != null ? entryFloorPrefab : floorPrefab;
+                floorColor = entryColor;
+            }
+            else if (isExit)
+            {
+                floorSource = exitFloorPrefab != null ? exitFloorPrefab : floorPrefab;
+                floorColor = exitColor;
+            }
+
+            SpawnFloor(floorSource, $"Floor_{x}_{y}", cc, new Vector3(cellSize, 0.1f, cellSize), floorColor);
 
             // North wall (+Z edge)
             if (walls[x, y, 0])
@@ -207,25 +228,20 @@ public class MazeGenerator : MonoBehaviour
     /// </summary>
     void SpawnMarkers()
     {
-        float halfCell = cellSize * 0.5f;
-        float pillarH  = wallHeight * 1.4f;   // taller than walls so it stands out
+        float markerSize = cellSize * 0.75f;
+        float markerHeight = 0.05f;
 
-        // Entry sits just outside the south opening of cell (0,0)
-        Vector3 entryPos = CellCenter(EntryCellX, EntryCellY)
-                         + new Vector3(0, pillarH * 0.5f, -halfCell - cellSize * 0.35f);
+        Vector3 entryPos = CellCenter(EntryCellX, EntryCellY) + Vector3.up * (markerHeight * 0.5f + 0.01f);
+        Vector3 exitPos  = CellCenter(ExitCellX, ExitCellY)  + Vector3.up * (markerHeight * 0.5f + 0.01f);
 
-        // Exit sits just outside the north opening of the top-right cell
-        Vector3 exitPos  = CellCenter(ExitCellX, ExitCellY)
-                         + new Vector3(0, pillarH * 0.5f,  halfCell + cellSize * 0.35f);
+        EntryWorldPosition = CellCenter(EntryCellX, EntryCellY);
+        ExitWorldPosition  = CellCenter(ExitCellX, ExitCellY);
 
-        EntryWorldPosition = entryPos;
-        ExitWorldPosition  = exitPos;
-
-        SpawnPortalMarker("Entry", entryPos, entryColor, entryMarkerPrefab, pillarH);
-        SpawnPortalMarker("Exit",  exitPos,  exitColor,  exitMarkerPrefab,  pillarH);
+        SpawnPortalMarker("Entry", entryPos, entryColor, entryMarkerPrefab, markerSize, markerHeight);
+        SpawnPortalMarker("Exit",  exitPos,  exitColor,  exitMarkerPrefab,  markerSize, markerHeight);
     }
 
-    void SpawnPortalMarker(string label, Vector3 pos, Color col, GameObject prefab, float pillarH)
+    void SpawnPortalMarker(string label, Vector3 pos, Color col, GameObject prefab, float size, float height)
     {
         GameObject marker;
 
@@ -233,28 +249,19 @@ public class MazeGenerator : MonoBehaviour
         {
             marker = Instantiate(prefab, mazeParent.transform);
             marker.transform.position = pos;
+            marker.transform.localScale = new Vector3(size, height, size);
         }
         else
         {
-            // Auto-create: a glowing cylinder pillar
             marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             marker.transform.SetParent(mazeParent.transform);
-            marker.transform.position   = pos;
-            marker.transform.localScale = new Vector3(cellSize * 0.22f, pillarH * 0.5f, cellSize * 0.22f);
-
+            marker.transform.position = pos;
+            marker.transform.localScale = new Vector3(size, height, size);
             ApplyEmissiveMaterial(marker, col);
-
-            // Floating disc above the pillar as a cap / beacon
-            GameObject cap = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            cap.transform.SetParent(mazeParent.transform);
-            cap.transform.position   = pos + Vector3.up * (pillarH * 0.5f + 0.05f);
-            cap.transform.localScale = new Vector3(cellSize * 0.45f, 0.06f, cellSize * 0.45f);
-            ApplyEmissiveMaterial(cap, col);
-            Destroy(cap.GetComponent<Collider>());
         }
 
         marker.name = $"Marker_{label}";
-        Destroy(marker.GetComponent<Collider>()); // markers are visual only
+        Destroy(marker.GetComponent<Collider>());
     }
 
     void SpawnPlayer()
@@ -305,6 +312,36 @@ public class MazeGenerator : MonoBehaviour
         go.name = objName;
         go.transform.position   = position;
         go.transform.localScale = scale;
+    }
+
+    void SpawnFloor(GameObject prefab, string objName, Vector3 position, Vector3 scale, Color? tint = null)
+    {
+        GameObject go;
+        if (prefab != null)
+        {
+            go = Instantiate(prefab, mazeParent.transform);
+        }
+        else
+        {
+            go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.transform.SetParent(mazeParent.transform);
+            Destroy(go.GetComponent<Collider>());
+        }
+
+        go.name = objName;
+        go.transform.position   = position;
+        go.transform.localScale = scale;
+
+        if (tint.HasValue)
+        {
+            Renderer rend = go.GetComponent<Renderer>();
+            if (rend != null)
+            {
+                Material mat = new Material(Shader.Find("Standard"));
+                mat.color = tint.Value;
+                rend.material = mat;
+            }
+        }
     }
 
     bool InBounds(int x, int y) => x >= 0 && x < width && y >= 0 && y < height;
