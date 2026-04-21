@@ -17,8 +17,17 @@ public class WinScreen : MonoBehaviour
 
     public void ShowWinScreen()
     {
+        Debug.Log($"ShowWinScreen called! WinPanel assigned: {winPanel != null}");
+
         if (winPanel != null)
+        {
             winPanel.SetActive(true);
+            Debug.Log("Win panel activated!");
+        }
+        else
+        {
+            Debug.LogWarning("WinScreen: winPanel is not assigned!");
+        }
 
         Time.timeScale = 0f;
         Cursor.visible = true;
@@ -42,11 +51,13 @@ public class WinScreen : MonoBehaviour
     public void ReturnToMainMenu()
     {
         Time.timeScale = 1f;
+
         if (string.IsNullOrEmpty(mainMenuSceneName))
         {
             Debug.LogWarning("WinScreen: mainMenuSceneName is not assigned.");
             return;
         }
+
         SceneManager.LoadScene(mainMenuSceneName);
     }
 

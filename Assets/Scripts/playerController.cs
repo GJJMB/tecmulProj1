@@ -20,13 +20,11 @@ public class PlayerController : MonoBehaviour
 
     [Header("Events")]
     public UnityEvent onReachedExit;
-    
-    [Header("Win Screen")]
-    public WinScreen winScreen;
 
     // ── State ────────────────────────────────────────────────────────────────
     private int _cellX, _cellY;
     private bool _moving;
+    private WinScreen _winScreen;
 
     // Direction vectors matching MazeGenerator's N/E/S/W order
     private static readonly int[] DX = { 0, 1, 0, -1 };
@@ -36,6 +34,14 @@ public class PlayerController : MonoBehaviour
 
     void Start()
     {
+        // Automatically find WinScreen anywhere in the scene — no Inspector wiring needed
+        _winScreen = FindObjectOfType<WinScreen>(includeInactive: true);
+
+        if (_winScreen == null)
+            Debug.LogError("PlayerController: Could not find a WinScreen component anywhere in the scene!");
+        else
+            Debug.Log($"PlayerController: WinScreen found on '{_winScreen.gameObject.name}'");
+
         // Snap to entry cell (0, 0) at generation time
         _cellX = 0;
         _cellY = 0;
@@ -44,14 +50,15 @@ public class PlayerController : MonoBehaviour
         // Initialize input
         moveAction = new InputAction("Move", InputActionType.Value);
         moveAction.AddCompositeBinding("Dpad")
-            .With("Up", "<Keyboard>/w")
-            .With("Up", "<Keyboard>/upArrow")
-            .With("Down", "<Keyboard>/s")
-            .With("Down", "<Keyboard>/downArrow")
-            .With("Left", "<Keyboard>/a")
-            .With("Left", "<Keyboard>/leftArrow")
+            .With("Up",    "<Keyboard>/w")
+            .With("Up",    "<Keyboard>/upArrow")
+            .With("Down",  "<Keyboard>/s")
+            .With("Down",  "<Keyboard>/downArrow")
+            .With("Left",  "<Keyboard>/a")
+            .With("Left",  "<Keyboard>/leftArrow")
             .With("Right", "<Keyboard>/d")
             .With("Right", "<Keyboard>/rightArrow");
+
         moveAction.performed += OnMovePerformed;
         moveAction.Enable();
     }
@@ -65,17 +72,15 @@ public class PlayerController : MonoBehaviour
     public void TryMove(int dir)
     {
         if (_moving) return;
-        if (!grid.IsPassable(_cellX, _cellY, dir)) return;   // wall blocks
+        if (!grid.IsPassable(_cellX, _cellY, dir)) return;
 
         int nx = _cellX + DX[dir];
         int ny = _cellY + DY[dir];
 
-        // Bounds guard (should be redundant if IsPassable is correct, but safety first)
         if (nx < 0 || nx >= grid.Width || ny < 0 || ny >= grid.Height) return;
 
         _cellX = nx;
         _cellY = ny;
-
         StartCoroutine(SlideTo(grid.CellToWorld(nx, ny) + Vector3.up * 0.5f));
         grid.NotifyMoved(nx, ny);
 
@@ -95,8 +100,7 @@ public class PlayerController : MonoBehaviour
         Vector2 move = context.ReadValue<Vector2>();
         if (move == Vector2.zero) return;
 
-        // Determine direction based on the vector
-        if (move.y > 0) TryMove(MazeGridController.North);
+        if      (move.y > 0) TryMove(MazeGridController.North);
         else if (move.x > 0) TryMove(MazeGridController.East);
         else if (move.y < 0) TryMove(MazeGridController.South);
         else if (move.x < 0) TryMove(MazeGridController.West);
@@ -105,12 +109,12 @@ public class PlayerController : MonoBehaviour
     private IEnumerator SlideTo(Vector3 target)
     {
         _moving = true;
-        Vector3 start = transform.position;
-        float elapsed = 0f;
+        Vector3 start   = transform.position;
+        float   elapsed = 0f;
 
         while (elapsed < moveTime)
         {
-            elapsed += Time.deltaTime;
+            elapsed           += Time.deltaTime;
             transform.position = Vector3.Lerp(start, target, elapsed / moveTime);
             yield return null;
         }
@@ -123,11 +127,19 @@ public class PlayerController : MonoBehaviour
     public int CellX => _cellX;
     public int CellY => _cellY;
 
-    /// <summary>Call this to trigger the win screen (can be hooked to onReachedExit event).</summary>
+    /// <summary>Triggered when player reaches the exit cell.</summary>
     public void OnReachedExit()
     {
-        if (winScreen != null)
-            winScreen.ShowWinScreen();
+        Debug.Log($"OnReachedExit called! Position: ({_cellX}, {_cellY}), WinScreen found: {_winScreen != null}");
+
+        if (_winScreen != null)
+        {
+            _winScreen.ShowWinScreen();
+        }
+        else
+        {
+            Debug.LogError("PlayerController: WinScreen not found in scene!");
+        }
     }
 
     void OnDestroy()
