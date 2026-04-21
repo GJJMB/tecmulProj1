@@ -14,6 +14,8 @@ public class PlayerController : MonoBehaviour
     [Tooltip("The GameObject that has MazeGridController + MazeGenerator.")]
     public MazeGridController grid;
 
+    [Tooltip("The GameObject that has MazeGrid")]
+    public MazeGenerator gridvars;
     [Header("Movement")]
     [Tooltip("Time in seconds to slide one cell.")]
     public float moveTime = 0.15f;
@@ -21,8 +23,12 @@ public class PlayerController : MonoBehaviour
     [Header("Events")]
     public UnityEvent onReachedExit;
 
-    // ── State ────────────────────────────────────────────────────────────────
+    [Header("Turn Counter")]
+    public int turnCounter = 0;
+
+    public GameObject enemyPrefab; // Assign an enemy prefab in the Inspector
     private int _cellX, _cellY;
+    private int _spawnedEnemies = 0;
     private bool _moving;
     private WinScreen _winScreen;
 
@@ -83,6 +89,23 @@ public class PlayerController : MonoBehaviour
         _cellY = ny;
         StartCoroutine(SlideTo(grid.CellToWorld(nx, ny) + Vector3.up * 0.5f));
         grid.NotifyMoved(nx, ny);
+
+        // Increment turn counter
+        turnCounter++;
+
+        // Check if it's time to spawn an enemy
+        Debug.Log($"Turn {turnCounter} taken. Checking for enemy spawn... Spawned enemies: {_spawnedEnemies}");
+        Debug.Log($"gridvars.turnsUntilEnemySpawn: {gridvars.turnsUntilEnemySpawn}, gridvars.maxEnemies: {gridvars.maxEnemies}");
+        Debug.Log($"gridvars.maxEnemies: {gridvars.maxEnemies}, _spawnedEnemies: {_spawnedEnemies}");
+        if (turnCounter % gridvars.turnsUntilEnemySpawn == 0 && turnCounter > 0 && _spawnedEnemies < gridvars.maxEnemies)
+        {
+            if (enemyPrefab != null)
+            {
+                _spawnedEnemies++;
+                Vector3 spawnPos = grid.CellToWorld(0, 0) + Vector3.up * 0.5f; // Spawn at entry cell
+                Instantiate(enemyPrefab, spawnPos, Quaternion.identity);
+            }
+        }
 
         // Win check
         if (nx == grid.Generator.width - 1 && ny == grid.Generator.height - 1)

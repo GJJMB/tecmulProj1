@@ -64,6 +64,17 @@ public class MazeGenerator : MonoBehaviour
     [Tooltip("Delay between steps when animating (seconds)")]
     public float animationDelay = 0.05f;
 
+    [Header("Enemy Settings")]
+    [Tooltip("Prefab for the enemy to spawn.")]
+    public GameObject enemyPrefab;
+
+    [Tooltip("Number of turns before spawning an enemy.")]
+    public int turnsUntilEnemySpawn = 5;
+
+    [Tooltip("Number maximum enemies.")]
+    public int maxEnemies = 1;
+
+
 
     // ── Public read-only access to portal world positions ────────────────────
     public Vector3 EntryWorldPosition { get; private set; }
@@ -282,6 +293,17 @@ public class MazeGenerator : MonoBehaviour
         }
     }
 
+    void SpawnEnemy()
+    {
+        if (enemyPrefab != null)
+        {
+            Vector3 spawnPos = CellCenter(EntryCellX, EntryCellY) + Vector3.up * 0.5f; // Spawn at entry cell
+            GameObject enemy = Instantiate(enemyPrefab, mazeParent.transform);
+            enemy.transform.position = spawnPos;
+            enemy.name = "Enemy";
+        }
+    }
+
     /// <summary>Creates and assigns a Standard material with emission to a GameObject.</summary>
     void ApplyEmissiveMaterial(GameObject go, Color col)
     {
@@ -380,4 +402,5 @@ public class MazeGenerator : MonoBehaviour
                                              ExitCellY * cellSize + hs), 0.35f);
     }
 #endif
+
 }
