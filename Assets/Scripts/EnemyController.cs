@@ -105,8 +105,14 @@ public class EnemyController : MonoBehaviour
         // Alternative collision detection using triggers
         if (other.CompareTag("Player"))
         {
+        Debug.Log("the player has died");
             Debug.Log("Enemy touched player! Game Over!");
             TriggerGameOver();
+        }
+        else
+        {
+        Debug.Log("thats interesting, the enemy collided with " + other.name + " but not the player");
+        Debug.Log("its tag is " + other.tag);
         }
     }
 
@@ -143,7 +149,7 @@ public class EnemyController : MonoBehaviour
                     Vector3 nextPos = path.Dequeue();
                     if (moveCoroutine != null)
                         StopCoroutine(moveCoroutine);
-                    moveCoroutine = StartCoroutine(MoveTo(nextPos + Vector3.up * 0.5f));
+                    moveCoroutine = StartCoroutine(MoveTo(nextPos + Vector3.up * 1f));
                 }
             }
             yield return new WaitForSeconds(0.5f); // Update path every 0.5 seconds

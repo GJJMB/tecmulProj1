@@ -101,16 +101,13 @@ public class PlayerController : MonoBehaviour
 
         _cellX = nx;
         _cellY = ny;
-        StartCoroutine(SlideTo(grid.CellToWorld(nx, ny) + Vector3.up * 0.5f));
+        StartCoroutine(SlideTo(grid.CellToWorld(nx, ny) + Vector3.up * 1f));
         grid.NotifyMoved(nx, ny);
 
         // Increment turn counter
         turnCounter++;
 
         // Check if it's time to spawn an enemy
-        Debug.Log($"Turn {turnCounter} taken. Checking for enemy spawn... Spawned enemies: {_spawnedEnemies}");
-        Debug.Log($"gridvars.turnsUntilEnemySpawn: {gridvars.turnsUntilEnemySpawn}, gridvars.maxEnemies: {gridvars.maxEnemies}");
-        Debug.Log($"gridvars.maxEnemies: {gridvars.maxEnemies}, _spawnedEnemies: {_spawnedEnemies}");
         if (turnCounter % gridvars.turnsUntilEnemySpawn == 0 && turnCounter > 0 && _spawnedEnemies < gridvars.maxEnemies)
         {
             if (enemyPrefab != null)

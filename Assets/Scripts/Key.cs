@@ -16,6 +16,7 @@ public class Key : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
+            Debug.Log($"Player collided with key {keyId}.");
             // Find player controller and add key
             PlayerController player = other.GetComponent<PlayerController>();
             if (player != null)
@@ -32,5 +33,11 @@ public class Key : MonoBehaviour
                 Destroy(gameObject);
             }
         }
+        else
+        {
+            Debug.Log($"thats interesting, {other.name} collided with key {keyId} but is not the player.");
+            Debug.Log($"its tag is {other.tag}");
+        }
+
     }
 }

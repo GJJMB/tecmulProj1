@@ -52,7 +52,7 @@ public class MazeGenerator : MonoBehaviour
 
     [Header("Entry / Exit Colors (used when no prefab is assigned)")]
     public Color entryColor = new Color(0.1f, 0.9f, 0.2f);   // bright green
-    public Color exitColor  = new Color(0.9f, 0.15f, 0.1f);  // bright red
+    public Color exitColor = new Color(0.9f, 0.15f, 0.1f);  // bright red
 
     [Header("Generation")]
     [Tooltip("Seed for reproducible mazes (0 = random each run)")]
@@ -95,24 +95,24 @@ public class MazeGenerator : MonoBehaviour
 
     // ── Public read-only access to portal world positions ────────────────────
     public Vector3 EntryWorldPosition { get; private set; }
-    public Vector3 ExitWorldPosition  { get; private set; }
+    public Vector3 ExitWorldPosition { get; private set; }
 
     // ── Internal state ───────────────────────────────────────────────────────
-    private bool[,]  visited;
+    private bool[,] visited;
     private bool[,,] walls;   // walls[x, y, dir] — 0=N  1=E  2=S  3=W
 
     private GameObject mazeParent;
 
-    private static readonly int[] dx       = {  0,  1,  0, -1 };
-    private static readonly int[] dy       = {  1,  0, -1,  0 };
-    private static readonly int[] opposite = {  2,  3,  0,  1 };
+    private static readonly int[] dx = { 0, 1, 0, -1 };
+    private static readonly int[] dy = { 1, 0, -1, 0 };
+    private static readonly int[] opposite = { 2, 3, 0, 1 };
 
     // Entry: bottom-left cell (0,0), opening faces South
     // Exit:  top-right cell (w-1, h-1), opening faces North
     private int EntryCellX => 0;
     private int EntryCellY => 0;
-    private int ExitCellX  => width  - 1;
-    private int ExitCellY  => height - 1;
+    private int ExitCellX => width - 1;
+    private int ExitCellY => height - 1;
 
     // ─────────────────────────────────────────────────────────────────────────
     /// <summary>Exposes wall state for external grid queries.</summary>
@@ -131,12 +131,12 @@ public class MazeGenerator : MonoBehaviour
         Random.InitState(seed == 0 ? System.Environment.TickCount : seed);
 
         visited = new bool[width, height];
-        walls   = new bool[width, height, 4];
+        walls = new bool[width, height, 4];
 
-        for (int x = 0; x < width;  x++)
-        for (int y = 0; y < height; y++)
-        for (int d = 0; d < 4;      d++)
-            walls[x, y, d] = true;
+        for (int x = 0; x < width; x++)
+            for (int y = 0; y < height; y++)
+                for (int d = 0; d < 4; d++)
+                    walls[x, y, d] = true;
 
         if (animateGeneration)
             StartCoroutine(CarvePassagesAnimated(0, 0));
@@ -156,7 +156,7 @@ public class MazeGenerator : MonoBehaviour
         {
             int nx = cx + dx[dir], ny = cy + dy[dir];
             if (!InBounds(nx, ny) || visited[nx, ny]) continue;
-            walls[cx, cy, dir]           = false;
+            walls[cx, cy, dir] = false;
             walls[nx, ny, opposite[dir]] = false;
             CarvePassages(nx, ny);
         }
@@ -169,7 +169,7 @@ public class MazeGenerator : MonoBehaviour
         {
             int nx = cx + dx[dir], ny = cy + dy[dir];
             if (!InBounds(nx, ny) || visited[nx, ny]) continue;
-            walls[cx, cy, dir]           = false;
+            walls[cx, cy, dir] = false;
             walls[nx, ny, opposite[dir]] = false;
             yield return new WaitForSeconds(animationDelay);
             yield return StartCoroutine(CarvePassagesAnimated(nx, ny));
@@ -184,57 +184,57 @@ public class MazeGenerator : MonoBehaviour
         foreach (Transform child in mazeParent.transform)
             Destroy(child.gameObject);
 
-        float wt       = cellSize * 0.1f;  // wall thickness
+        float wt = cellSize * 0.1f;  // wall thickness
         float halfCell = cellSize * 0.5f;
 
         for (int x = 0; x < width; x++)
-        for (int y = 0; y < height; y++)
-        {
-            Vector3 cc = CellCenter(x, y);
-
-            // Floor tile
-            GameObject floorSource = floorPrefab;
-            Color? floorColor = null;
-            bool isEntry = x == EntryCellX && y == EntryCellY;
-            bool isExit  = x == ExitCellX  && y == ExitCellY;
-
-            if (isEntry)
+            for (int y = 0; y < height; y++)
             {
-                floorSource = entryFloorPrefab != null ? entryFloorPrefab : floorPrefab;
-                floorColor = entryColor;
+                Vector3 cc = CellCenter(x, y);
+
+                // Floor tile
+                GameObject floorSource = floorPrefab;
+                Color? floorColor = null;
+                bool isEntry = x == EntryCellX && y == EntryCellY;
+                bool isExit = x == ExitCellX && y == ExitCellY;
+
+                if (isEntry)
+                {
+                    floorSource = entryFloorPrefab != null ? entryFloorPrefab : floorPrefab;
+                    floorColor = entryColor;
+                }
+                else if (isExit)
+                {
+                    floorSource = exitFloorPrefab != null ? exitFloorPrefab : floorPrefab;
+                    floorColor = exitColor;
+                }
+
+                SpawnFloor(floorSource, $"Floor_{x}_{y}", cc, new Vector3(cellSize, 0.1f, cellSize), floorColor);
+
+                // North wall (+Z edge)
+                if (walls[x, y, 0])
+                    SpawnWall($"Wall_N_{x}_{y}",
+                        cc + new Vector3(0, wallHeight * 0.5f, halfCell),
+                        new Vector3(cellSize + wt, wallHeight, wt));
+
+                // East wall (+X edge)
+                if (walls[x, y, 1])
+                    SpawnWall($"Wall_E_{x}_{y}",
+                        cc + new Vector3(halfCell, wallHeight * 0.5f, 0),
+                        new Vector3(wt, wallHeight, cellSize + wt));
+
+                // South wall — only on bottom border row to avoid duplicates
+                if (y == 0 && walls[x, y, 2])
+                    SpawnWall($"Wall_S_{x}_{y}",
+                        cc + new Vector3(0, wallHeight * 0.5f, -halfCell),
+                        new Vector3(cellSize + wt, wallHeight, wt));
+
+                // West wall — only on left border column to avoid duplicates
+                if (x == 0 && walls[x, y, 3])
+                    SpawnWall($"Wall_W_{x}_{y}",
+                        cc + new Vector3(-halfCell, wallHeight * 0.5f, 0),
+                        new Vector3(wt, wallHeight, cellSize + wt));
             }
-            else if (isExit)
-            {
-                floorSource = exitFloorPrefab != null ? exitFloorPrefab : floorPrefab;
-                floorColor = exitColor;
-            }
-
-            SpawnFloor(floorSource, $"Floor_{x}_{y}", cc, new Vector3(cellSize, 0.1f, cellSize), floorColor);
-
-            // North wall (+Z edge)
-            if (walls[x, y, 0])
-                SpawnWall($"Wall_N_{x}_{y}",
-                    cc + new Vector3(0, wallHeight * 0.5f, halfCell),
-                    new Vector3(cellSize + wt, wallHeight, wt));
-
-            // East wall (+X edge)
-            if (walls[x, y, 1])
-                SpawnWall($"Wall_E_{x}_{y}",
-                    cc + new Vector3(halfCell, wallHeight * 0.5f, 0),
-                    new Vector3(wt, wallHeight, cellSize + wt));
-
-            // South wall — only on bottom border row to avoid duplicates
-            if (y == 0 && walls[x, y, 2])
-                SpawnWall($"Wall_S_{x}_{y}",
-                    cc + new Vector3(0, wallHeight * 0.5f, -halfCell),
-                    new Vector3(cellSize + wt, wallHeight, wt));
-
-            // West wall — only on left border column to avoid duplicates
-            if (x == 0 && walls[x, y, 3])
-                SpawnWall($"Wall_W_{x}_{y}",
-                    cc + new Vector3(-halfCell, wallHeight * 0.5f, 0),
-                    new Vector3(wt, wallHeight, cellSize + wt));
-        }
 
         PlaceKeysAndDoors();
         SpawnMarkers();
@@ -247,7 +247,7 @@ public class MazeGenerator : MonoBehaviour
     /// 
     void PlaceKeysAndDoors()
     {
-        if (numKeysAndDoors <= 0 || keyPrefab == null || doorPrefab == null)return;
+        if (numKeysAndDoors <= 0 || keyPrefab == null || doorPrefab == null) return;
 
         // Find the main path from entry to exit
         List<Vector2Int> mainPath = FindMainPath();
@@ -268,7 +268,12 @@ public class MazeGenerator : MonoBehaviour
                 if (keyPos != Vector2Int.zero)
                 {
                     // Only spawn door if a key can be placed before it
-                    walls[doorCell.x, doorCell.y, doorDir] = true; // Ensure wall exists
+                    int nx = doorCell.x + dx[doorDir];
+                    int ny = doorCell.y + dy[doorDir];
+
+                    // Make sure the corridor is open on BOTH sides
+                    walls[doorCell.x, doorCell.y, doorDir] = false;
+                    walls[nx, ny, opposite[doorDir]] = false;
                     SpawnDoor(doorCell, doorDir, doorCount + 1);
                     SpawnKey(keyPos, doorCount + 1);
                     doorCount++;
@@ -339,7 +344,7 @@ public class MazeGenerator : MonoBehaviour
 
         for (int dir = 0; dir < 4; dir++)
         {
-            if (!walls[cell.x, cell.y, dir]) continue; // Must be a wall
+            if (walls[cell.x, cell.y, dir]) continue; // Must be an open passage
 
             int nx = cell.x + dx[dir];
             int ny = cell.y + dy[dir];
@@ -425,99 +430,96 @@ public class MazeGenerator : MonoBehaviour
     /// <summary>Spawns a door at the specified cell and direction.</summary>
     void SpawnDoor(Vector2Int cell, int dir, int doorId)
     {
-
-        // Place the door in the center of the corridor between cell and neighbor in 'dir'
         Vector3 cellCenter = CellCenter(cell.x, cell.y);
+
         float doorHeight = wallHeight * 0.8f;
         float doorThickness = cellSize * 0.3f;
-        Vector3 offset = Vector3.zero;
+
+        // 🔥 NEW: place door exactly between this cell and the neighbor
+        Vector3 neighborCenter = CellCenter(cell.x + dx[dir], cell.y + dy[dir]);
+        Vector3 position = (cellCenter + neighborCenter) / 2f;
+        position.y = doorHeight * 0.5f;
+
+        // Scale still depends on direction
         Vector3 scale = Vector3.one;
 
         switch (dir)
         {
-            case 0: // North
-                offset = new Vector3(0, doorHeight * 0.5f, cellSize * 0.5f);
+            case 0: // North / South → wide on X
+            case 2:
                 scale = new Vector3(cellSize * 0.7f, doorHeight, doorThickness);
                 break;
-            case 1: // East
-                offset = new Vector3(cellSize * 0.5f, doorHeight * 0.5f, 0);
+
+            case 1: // East / West → wide on Z
+            case 3:
                 scale = new Vector3(doorThickness, doorHeight, cellSize * 0.7f);
                 break;
-            case 2: // South
-                offset = new Vector3(0, doorHeight * 0.5f, -cellSize * 0.5f);
-                scale = new Vector3(cellSize * 0.7f, doorHeight, doorThickness);
-                break;
-            case 3: // West
-                offset = new Vector3(-cellSize * 0.5f, doorHeight * 0.5f, 0);
-                scale = new Vector3(doorThickness, doorHeight, cellSize * 0.7f);
-                break;
+
             default:
                 return;
         }
-        Vector3 position = cellCenter + offset;
+
+        GameObject door;
 
         if (doorPrefab != null)
         {
-            GameObject door = Instantiate(doorPrefab, mazeParent.transform);
-            door.transform.position = position;
-            door.transform.localScale = scale;
-            door.name = $"Door_{doorId}";
-
-            // Add door component
-            Door doorComponent = door.AddComponent<Door>();
-            doorComponent.doorId = doorId;
+            door = Instantiate(doorPrefab, mazeParent.transform);
         }
         else
         {
-            // Create simple colored door
-            GameObject door = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            // Fallback: simple cube door
+            door = GameObject.CreatePrimitive(PrimitiveType.Cube);
             door.transform.SetParent(mazeParent.transform);
-            door.transform.position = position;
-            door.transform.localScale = scale;
-            door.name = $"Door_{doorId}";
 
-            // Apply door material
             ApplyEmissiveMaterial(door, doorColor);
-
-            // Add door component
-            Door doorComponent = door.AddComponent<Door>();
-            doorComponent.doorId = doorId;
         }
+
+        door.transform.position = position;
+        door.transform.localScale = scale;
+        door.name = $"Door_{doorId}";
+
+        // Add door component
+        Door doorComponent = door.AddComponent<Door>();
+        doorComponent.doorId = doorId;
     }
 
     /// <summary>Spawns a key at the specified cell.</summary>
     void SpawnKey(Vector2Int cell, int keyId)
     {
-        Vector3 position = CellCenter(cell.x, cell.y) + Vector3.up * 0.5f;
+        Vector3 position = CellCenter(cell.x, cell.y) + Vector3.up * 1f;
         float keySize = cellSize * 0.3f;
+
+        GameObject key;
 
         if (keyPrefab != null)
         {
-            GameObject key = Instantiate(keyPrefab, mazeParent.transform);
-            key.transform.position = position;
-            key.transform.localScale = new Vector3(keySize, keySize, keySize);
-            key.name = $"Key_{keyId}";
-
-            // Add key component
-            Key keyComponent = key.AddComponent<Key>();
-            keyComponent.keyId = keyId;
+            key = Instantiate(keyPrefab, mazeParent.transform);
         }
         else
         {
-            // Create simple colored key
-            GameObject key = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            key = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             key.transform.SetParent(mazeParent.transform);
-            key.transform.position = position;
-            key.transform.localScale = new Vector3(keySize, 0.1f, keySize);
-            key.name = $"Key_{keyId}";
 
-            // Apply key material
             ApplyEmissiveMaterial(key, keyColor);
-
-            // Add key component
-            Key keyComponent = key.AddComponent<Key>();
-            keyComponent.keyId = keyId;
         }
+
+        key.transform.position = position;
+        key.transform.localScale = new Vector3(keySize, 0.1f, keySize);
+        key.name = $"Key_{keyId}";
+
+        // ✅ Collider must be trigger
+        Collider col = key.GetComponent<Collider>();
+        if (col != null)
+            col.isTrigger = true;
+
+        // ✅ Rigidbody required for trigger detection
+        Rigidbody rb = key.AddComponent<Rigidbody>();
+        rb.isKinematic = true;
+        rb.useGravity = false;
+
+        // ✅ Key logic
+        Key keyComponent = key.AddComponent<Key>();
+        keyComponent.keyId = keyId;
     }
 
     /// <summary>
@@ -530,13 +532,13 @@ public class MazeGenerator : MonoBehaviour
         float markerHeight = 0.05f;
 
         Vector3 entryPos = CellCenter(EntryCellX, EntryCellY) + Vector3.up * (markerHeight * 0.5f + 0.01f);
-        Vector3 exitPos  = CellCenter(ExitCellX, ExitCellY)  + Vector3.up * (markerHeight * 0.5f + 0.01f);
+        Vector3 exitPos = CellCenter(ExitCellX, ExitCellY) + Vector3.up * (markerHeight * 0.5f + 0.01f);
 
         EntryWorldPosition = CellCenter(EntryCellX, EntryCellY);
-        ExitWorldPosition  = CellCenter(ExitCellX, ExitCellY);
+        ExitWorldPosition = CellCenter(ExitCellX, ExitCellY);
 
         SpawnPortalMarker("Entry", entryPos, entryColor, entryMarkerPrefab, markerSize, markerHeight);
-        SpawnPortalMarker("Exit",  exitPos,  exitColor,  exitMarkerPrefab,  markerSize, markerHeight);
+        SpawnPortalMarker("Exit", exitPos, exitColor, exitMarkerPrefab, markerSize, markerHeight);
     }
 
     void SpawnPortalMarker(string label, Vector3 pos, Color col, GameObject prefab, float size, float height)
@@ -619,7 +621,7 @@ public class MazeGenerator : MonoBehaviour
     {
         GameObject go = Instantiate(prefab, mazeParent.transform);
         go.name = objName;
-        go.transform.position   = position;
+        go.transform.position = position;
         go.transform.localScale = scale;
     }
 
@@ -638,7 +640,7 @@ public class MazeGenerator : MonoBehaviour
         }
 
         go.name = objName;
-        go.transform.position   = position;
+        go.transform.position = position;
         go.transform.localScale = scale;
 
         if (tint.HasValue)
