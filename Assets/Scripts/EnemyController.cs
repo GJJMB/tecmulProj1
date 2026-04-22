@@ -143,23 +143,30 @@ public class EnemyController : MonoBehaviour
                     Vector3 nextPos = path.Dequeue();
                     if (moveCoroutine != null)
                         StopCoroutine(moveCoroutine);
-                    moveCoroutine = StartCoroutine(MoveTo(nextPos));
+                    moveCoroutine = StartCoroutine(MoveTo(nextPos + Vector3.up * 0.5f));
                 }
             }
             yield return new WaitForSeconds(0.5f); // Update path every 0.5 seconds
         }
     }
-
+    
+    [SerializeField] private float moveTime = 0.2f; // match your player's moveTime
     IEnumerator MoveTo(Vector3 target)
     {
-        while (Vector3.Distance(transform.position, target) > 0.1f)
+        Vector3 start   = transform.position;
+        float   elapsed = 0f;
+    
+        while (elapsed < moveTime)
         {
-            transform.position = Vector3.MoveTowards(transform.position, target, moveSpeed * Time.deltaTime);
+            elapsed           += Time.deltaTime;
+            transform.position = Vector3.Lerp(start, target, elapsed / moveTime);
             yield return null;
         }
+    
+        transform.position = target; // snap to exact target at the end
     }
 
-    private Queue<Vector3> PathfindingAlgorithm(int startX, int startY, int targetX, int targetY)
+        private Queue<Vector3> PathfindingAlgorithm(int startX, int startY, int targetX, int targetY)
     {
         // A* Pathfinding Algorithm
         PriorityQueue<Node> openSet = new PriorityQueue<Node>();
