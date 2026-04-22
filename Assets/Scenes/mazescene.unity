@@ -178,7 +178,7 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
+  near clip plane: -40
   far clip plane: 1000
   field of view: 60
   orthographic: 1
@@ -271,7 +271,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraFollow
   target: {fileID: 1042490192}
   smoothSpeed: 5
-  offset: {x: 0, y: 10, z: -5}
+  offset: {x: 0, y: 20, z: -5}
   lookAtTarget: 1
 --- !u!1 &285879904
 GameObject:
@@ -2331,8 +2331,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddc0427784a78216aae2af1283a952b9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MazeGenerator
-  width: 10
-  height: 10
+  width: 20
+  height: 20
   cellSize: 3.6
   wallHeight: 3.6
   wallPrefab: {fileID: 4981045805600940088, guid: a119ebadd51cce0a490f4df3f623efd4, type: 3}
@@ -2348,8 +2348,13 @@ MonoBehaviour:
   animateGeneration: 0
   animationDelay: 0.05
   enemyPrefab: {fileID: 1418752356}
-  turnsUntilEnemySpawn: 5
+  turnsUntilEnemySpawn: 10
   maxEnemies: 1
+  keyPrefab: {fileID: 1293751952391922403, guid: a67d8a8275f87f0fea25bbd70e1d7b82, type: 3}
+  doorPrefab: {fileID: 4577856557320900731, guid: 9ff9425963f063187929401519f81169, type: 3}
+  numKeysAndDoors: 2
+  doorColor: {r: 0.8, g: 0.4, b: 0.1, a: 1}
+  keyColor: {r: 1, g: 0.8, b: 0, a: 1}
 --- !u!4 &1694604362
 Transform:
   m_ObjectHideFlags: 0

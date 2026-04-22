@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
+using TMPro;
 
 /// <summary>
 /// Step-based player controller for a procedural maze.
@@ -25,6 +26,13 @@ public class PlayerController : MonoBehaviour
 
     [Header("Turn Counter")]
     public int turnCounter = 0;
+
+    [Header("Keys")]
+    [Tooltip("Keys collected by the player")]
+    public System.Collections.Generic.List<int> collectedKeys = new System.Collections.Generic.List<int>();
+
+    [Tooltip("UI text to display collected keys")]
+    public TMP_Text keyCounterText;
 
     public GameObject enemyPrefab; // Assign an enemy prefab in the Inspector
     private int _cellX, _cellY;
@@ -67,6 +75,9 @@ public class PlayerController : MonoBehaviour
 
         moveAction.performed += OnMovePerformed;
         moveAction.Enable();
+
+        // Initialize UI
+        UpdateKeyUI();
     }
 
     void Update()
@@ -79,6 +90,9 @@ public class PlayerController : MonoBehaviour
     {
         if (_moving) return;
         if (!grid.IsPassable(_cellX, _cellY, dir)) return;
+
+        // Check for locked doors
+        if (IsDoorBlocking(_cellX, _cellY, dir)) return;
 
         int nx = _cellX + DX[dir];
         int ny = _cellY + DY[dir];
@@ -162,6 +176,85 @@ public class PlayerController : MonoBehaviour
         else
         {
             Debug.LogError("PlayerController: WinScreen not found in scene!");
+        }
+    }
+
+    // ── Key System ───────────────────────────────────────────────────────────
+
+    /// <summary>Called when the player collects a key.</summary>
+    public void CollectKey(int keyId)
+    {
+        if (!collectedKeys.Contains(keyId))
+        {
+            collectedKeys.Add(keyId);
+            Debug.Log($"Player collected key {keyId}. Total keys: {collectedKeys.Count}");
+            UpdateKeyUI();
+        }
+    }
+
+    /// <summary>Checks if the player has the specified key.</summary>
+    public bool HasKey(int keyId)
+    {
+        return collectedKeys.Contains(keyId);
+    }
+
+    /// <summary>Gets the number of keys collected.</summary>
+    public int GetKeyCount()
+    {
+        return collectedKeys.Count;
+    }
+
+    /// <summary>Updates the key counter UI.</summary>
+    private void UpdateKeyUI()
+    {
+        if (keyCounterText != null)
+        {
+            keyCounterText.text = $"Keys: {collectedKeys.Count}";
+        }
+    }
+
+    /// <summary>Checks if a door is blocking movement in the specified direction.</summary>
+    private bool IsDoorBlocking(int x, int y, int dir)
+    {
+        // Find door objects at the wall position
+        Vector3 wallPosition = GetWallPosition(x, y, dir);
+        Collider[] colliders = Physics.OverlapSphere(wallPosition, 0.5f);
+
+        foreach (Collider collider in colliders)
+        {
+            Door door = collider.GetComponent<Door>();
+            if (door != null && door.isActiveAndEnabled)
+            {
+                // Check if player has the key for this door
+                if (!HasKey(door.doorId))
+                {
+                    Debug.Log($"Door {door.doorId} is locked. Player needs key {door.doorId}.");
+                    return true;
+                }
+                else
+                {
+                    // Player has key, unlock the door
+                    door.UnlockDoor();
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Gets the world position of a wall between two cells.</summary>
+    private Vector3 GetWallPosition(int x, int y, int dir)
+    {
+        Vector3 cellCenter = grid.CellToWorld(x, y);
+        float halfCell = grid.Generator.cellSize * 0.5f;
+
+        switch (dir)
+        {
+            case 0: return cellCenter + new Vector3(0, 1f, halfCell);  // North
+            case 1: return cellCenter + new Vector3(halfCell, 1f, 0);  // East
+            case 2: return cellCenter + new Vector3(0, 1f, -halfCell); // South
+            case 3: return cellCenter + new Vector3(-halfCell, 1f, 0); // West
+            default: return cellCenter;
         }
     }
 

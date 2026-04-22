@@ -74,6 +74,23 @@ public class MazeGenerator : MonoBehaviour
     [Tooltip("Number maximum enemies.")]
     public int maxEnemies = 1;
 
+    [Header("Key & Door Settings")]
+    [Tooltip("Prefab for keys that the player must collect.")]
+    public GameObject keyPrefab;
+
+    [Tooltip("Prefab for locked doors that require keys.")]
+    public GameObject doorPrefab;
+
+    [Tooltip("Number of keys/doors to place in the maze.")]
+    [Range(1, 5)]
+    public int numKeysAndDoors = 2;
+
+    [Tooltip("Color for locked doors.")]
+    public Color doorColor = new Color(0.8f, 0.4f, 0.1f); // orange
+
+    [Tooltip("Color for keys.")]
+    public Color keyColor = new Color(1f, 0.8f, 0f); // gold
+
 
 
     // ── Public read-only access to portal world positions ────────────────────
@@ -219,18 +236,288 @@ public class MazeGenerator : MonoBehaviour
                     new Vector3(wt, wallHeight, cellSize + wt));
         }
 
-        OpenEntryExit();
+        PlaceKeysAndDoors();
         SpawnMarkers();
         SpawnPlayer();
     }
 
-    // ── Entry / Exit ──────────────────────────────────────────────────────────
+    // ── Key & Door Placement ─────────────────────────────────────────────────
 
-    /// <summary>Opens the wall gaps that form the physical entry and exit.</summary>
-    void OpenEntryExit()
+    /// <summary>Places keys and doors in the maze ensuring umKeysAndDoors <= 0 || (keyPrefab == null && doorPrefab == null)) return;keys are accessible before doors.</summary>
+    /// 
+    void PlaceKeysAndDoors()
     {
-        walls[EntryCellX, EntryCellY, 2] = false;  // Entry: south wall of (0,0)
-        walls[ExitCellX,  ExitCellY,  0] = false;  // Exit:  north wall of top-right cell
+        if (numKeysAndDoors <= 0 || keyPrefab == null || doorPrefab == null)return;
+
+        // Find the main path from entry to exit
+        List<Vector2Int> mainPath = FindMainPath();
+
+        if (mainPath.Count < numKeysAndDoors * 3) return; // Need enough path cells
+
+        // Place doors and keys together, only if a valid key position is found
+        int pathStep = mainPath.Count / (numKeysAndDoors + 1);
+        int doorCount = 0;
+        for (int i = 1; i <= numKeysAndDoors; i++)
+        {
+            int pathIndex = Mathf.Min(i * pathStep, mainPath.Count - 2);
+            Vector2Int doorCell = mainPath[pathIndex];
+            int doorDir = FindSuitableDoorWall(doorCell);
+            if (doorDir != -1)
+            {
+                Vector2Int keyPos = FindKeyPosition(doorCell, mainPath);
+                if (keyPos != Vector2Int.zero)
+                {
+                    // Only spawn door if a key can be placed before it
+                    walls[doorCell.x, doorCell.y, doorDir] = true; // Ensure wall exists
+                    SpawnDoor(doorCell, doorDir, doorCount + 1);
+                    SpawnKey(keyPos, doorCount + 1);
+                    doorCount++;
+                }
+            }
+        }
+    }
+
+    /// <summary>Finds the main path from entry to exit using BFS.</summary>
+    List<Vector2Int> FindMainPath()
+    {
+        List<Vector2Int> path = new List<Vector2Int>();
+        bool[,] visited = new bool[width, height];
+        Vector2Int?[,] parent = new Vector2Int?[width, height];
+
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        queue.Enqueue(new Vector2Int(EntryCellX, EntryCellY));
+        visited[EntryCellX, EntryCellY] = true;
+
+        bool found = false;
+        while (queue.Count > 0 && !found)
+        {
+            Vector2Int current = queue.Dequeue();
+
+            for (int dir = 0; dir < 4; dir++)
+            {
+                int nx = current.x + dx[dir];
+                int ny = current.y + dy[dir];
+
+                if (InBounds(nx, ny) && !visited[nx, ny] && !walls[current.x, current.y, dir])
+                {
+                    visited[nx, ny] = true;
+                    parent[nx, ny] = current;
+                    queue.Enqueue(new Vector2Int(nx, ny));
+
+                    if (nx == ExitCellX && ny == ExitCellY)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Reconstruct path
+        if (found)
+        {
+            Vector2Int current = new Vector2Int(ExitCellX, ExitCellY);
+            while (current != new Vector2Int(EntryCellX, EntryCellY))
+            {
+                path.Insert(0, current);
+                if (parent[current.x, current.y].HasValue)
+                    current = parent[current.x, current.y].Value;
+                else
+                    break;
+            }
+            path.Insert(0, new Vector2Int(EntryCellX, EntryCellY));
+        }
+
+        return path;
+    }
+
+    /// <summary>Finds a suitable wall direction for a door at the given cell.</summary>
+    int FindSuitableDoorWall(Vector2Int cell)
+    {
+        // Prefer walls that lead to side passages, not dead ends
+        List<int> candidates = new List<int>();
+
+        for (int dir = 0; dir < 4; dir++)
+        {
+            if (!walls[cell.x, cell.y, dir]) continue; // Must be a wall
+
+            int nx = cell.x + dx[dir];
+            int ny = cell.y + dy[dir];
+
+            if (!InBounds(nx, ny)) continue;
+
+            // Check if the adjacent cell has at least one other connection
+            int connections = 0;
+            for (int d = 0; d < 4; d++)
+            {
+                if (!walls[nx, ny, d]) connections++;
+            }
+
+            if (connections >= 2) // Has multiple connections, good for door
+            {
+                candidates.Add(dir);
+            }
+        }
+
+        if (candidates.Count > 0)
+        {
+            return candidates[Random.Range(0, candidates.Count)];
+        }
+
+        // Fallback: any wall
+        for (int dir = 0; dir < 4; dir++)
+        {
+            if (walls[cell.x, cell.y, dir]) return dir;
+        }
+
+        return -1;
+    }
+
+    /// <summary>Finds a suitable position for a key that's accessible before reaching the door.</summary>
+    Vector2Int FindKeyPosition(Vector2Int doorPos, List<Vector2Int> mainPath)
+    {
+        // Look for dead ends or side areas before the door on the main path
+        int doorIndex = mainPath.IndexOf(doorPos);
+        if (doorIndex <= 0) return Vector2Int.zero;
+
+        // Search backwards from the door position
+        for (int i = doorIndex - 1; i >= 0; i--)
+        {
+            Vector2Int cell = mainPath[i];
+
+            // Check adjacent cells for dead ends
+            for (int dir = 0; dir < 4; dir++)
+            {
+                int nx = cell.x + dx[dir];
+                int ny = cell.y + dy[dir];
+
+                if (!InBounds(nx, ny) || walls[cell.x, cell.y, dir]) continue;
+
+                // Check if this adjacent cell is a dead end (only one connection)
+                int connections = 0;
+                for (int d = 0; d < 4; d++)
+                {
+                    if (!walls[nx, ny, d]) connections++;
+                }
+
+                if (connections == 1) // Dead end, perfect for key
+                {
+                    return new Vector2Int(nx, ny);
+                }
+            }
+        }
+
+        // Fallback: place key in a random accessible cell before the door
+        List<Vector2Int> candidates = new List<Vector2Int>();
+        for (int i = 0; i < doorIndex; i++)
+        {
+            candidates.Add(mainPath[i]);
+        }
+
+        if (candidates.Count > 0)
+        {
+            return candidates[Random.Range(0, candidates.Count)];
+        }
+
+        return Vector2Int.zero;
+    }
+
+    /// <summary>Spawns a door at the specified cell and direction.</summary>
+    void SpawnDoor(Vector2Int cell, int dir, int doorId)
+    {
+
+        // Place the door in the center of the corridor between cell and neighbor in 'dir'
+        Vector3 cellCenter = CellCenter(cell.x, cell.y);
+        float doorHeight = wallHeight * 0.8f;
+        float doorThickness = cellSize * 0.3f;
+        Vector3 offset = Vector3.zero;
+        Vector3 scale = Vector3.one;
+
+        switch (dir)
+        {
+            case 0: // North
+                offset = new Vector3(0, doorHeight * 0.5f, cellSize * 0.5f);
+                scale = new Vector3(cellSize * 0.7f, doorHeight, doorThickness);
+                break;
+            case 1: // East
+                offset = new Vector3(cellSize * 0.5f, doorHeight * 0.5f, 0);
+                scale = new Vector3(doorThickness, doorHeight, cellSize * 0.7f);
+                break;
+            case 2: // South
+                offset = new Vector3(0, doorHeight * 0.5f, -cellSize * 0.5f);
+                scale = new Vector3(cellSize * 0.7f, doorHeight, doorThickness);
+                break;
+            case 3: // West
+                offset = new Vector3(-cellSize * 0.5f, doorHeight * 0.5f, 0);
+                scale = new Vector3(doorThickness, doorHeight, cellSize * 0.7f);
+                break;
+            default:
+                return;
+        }
+        Vector3 position = cellCenter + offset;
+
+        if (doorPrefab != null)
+        {
+            GameObject door = Instantiate(doorPrefab, mazeParent.transform);
+            door.transform.position = position;
+            door.transform.localScale = scale;
+            door.name = $"Door_{doorId}";
+
+            // Add door component
+            Door doorComponent = door.AddComponent<Door>();
+            doorComponent.doorId = doorId;
+        }
+        else
+        {
+            // Create simple colored door
+            GameObject door = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            door.transform.SetParent(mazeParent.transform);
+            door.transform.position = position;
+            door.transform.localScale = scale;
+            door.name = $"Door_{doorId}";
+
+            // Apply door material
+            ApplyEmissiveMaterial(door, doorColor);
+
+            // Add door component
+            Door doorComponent = door.AddComponent<Door>();
+            doorComponent.doorId = doorId;
+        }
+    }
+
+    /// <summary>Spawns a key at the specified cell.</summary>
+    void SpawnKey(Vector2Int cell, int keyId)
+    {
+        Vector3 position = CellCenter(cell.x, cell.y) + Vector3.up * 0.5f;
+        float keySize = cellSize * 0.3f;
+
+        if (keyPrefab != null)
+        {
+            GameObject key = Instantiate(keyPrefab, mazeParent.transform);
+            key.transform.position = position;
+            key.transform.localScale = new Vector3(keySize, keySize, keySize);
+            key.name = $"Key_{keyId}";
+
+            // Add key component
+            Key keyComponent = key.AddComponent<Key>();
+            keyComponent.keyId = keyId;
+        }
+        else
+        {
+            // Create simple colored key
+            GameObject key = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            key.transform.SetParent(mazeParent.transform);
+            key.transform.position = position;
+            key.transform.localScale = new Vector3(keySize, 0.1f, keySize);
+            key.name = $"Key_{keyId}";
+
+            // Apply key material
+            ApplyEmissiveMaterial(key, keyColor);
+
+            // Add key component
+            Key keyComponent = key.AddComponent<Key>();
+            keyComponent.keyId = keyId;
+        }
     }
 
     /// <summary>
