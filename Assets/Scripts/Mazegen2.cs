@@ -56,7 +56,7 @@ public class MazeGenerator : MonoBehaviour
 
     [Header("Generation")]
     [Tooltip("Seed for reproducible mazes (0 = random each run)")]
-    public int seed = 0;
+    public int seed = GameSetup.SelectedSeed;
 
     [Tooltip("Visualize generation step-by-step")]
     public bool animateGeneration = false;
@@ -83,14 +83,13 @@ public class MazeGenerator : MonoBehaviour
 
     [Tooltip("Number of keys/doors to place in the maze.")]
     [Range(1, 5)]
-    public int numKeysAndDoors = 2;
+    public int numKeysAndDoors = 0;
 
     [Tooltip("Color for locked doors.")]
     public Color doorColor = new Color(0.8f, 0.4f, 0.1f); // orange
 
     [Tooltip("Color for keys.")]
     public Color keyColor = new Color(1f, 0.8f, 0f); // gold
-
 
 
     // ── Public read-only access to portal world positions ────────────────────
@@ -118,9 +117,38 @@ public class MazeGenerator : MonoBehaviour
     /// <summary>Exposes wall state for external grid queries.</summary>
     public bool HasWall(int x, int y, int dir) => walls[x, y, dir];
 
-    void Start() => GenerateMaze();
+    void Start()
+    {
+        // If the helper has a seed (anything other than 0), use it!
+        if (GameSetup.SelectedSeed != 0)
+        {
+            this.seed = GameSetup.SelectedSeed;
+        }
+        if (GameSetup.MapWidth > 0)
+        {
+            this.width = GameSetup.MapWidth;
+        }
+        if (GameSetup.MapHeight > 0)
+        {
+            this.height = GameSetup.MapHeight;
+        }
+        if(GameSetup.NumDoorsKeys > 0)
+        {
+            this.numKeysAndDoors = GameSetup.NumDoorsKeys;
+        }
 
-    /// <summary>Call this at any time to (re)generate the maze.</summary>
+        Debug.Log("MazeGenerator: Starting maze generation with seed " + seed);
+        Debug.Log("MazeGenerator: Starting maze generation with width " + width);
+        Debug.Log("MazeGenerator: Starting maze generation with height " + height);
+        //log all of the gamesetup vars
+        Debug.Log("GameSetup width" + GameSetup.MapWidth);
+        Debug.Log("GameSetup height" + GameSetup.MapHeight);
+        Debug.Log("GameSetup DoorsAndKeys" + GameSetup.NumDoorsKeys);
+        Debug.Log("GameSetup SelectedSeed" + GameSetup.SelectedSeed);
+
+        GenerateMaze();
+    }   
+
     public void GenerateMaze()
     {
         if (mazeParent != null) Destroy(mazeParent);

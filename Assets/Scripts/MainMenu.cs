@@ -1,10 +1,10 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
-
 public class MainMenu : MonoBehaviour
 {
     [Tooltip("The scene name used for gameplay.")]
     public string gameSceneName = "SampleScene";
+    public GameObject settingsPanel;
 
     private void Awake()
     {
@@ -19,8 +19,24 @@ public class MainMenu : MonoBehaviour
             Debug.LogWarning("MainMenu: gameSceneName is not assigned.");
             return;
         }
-
         SceneManager.LoadScene(gameSceneName);
+    }
+    public void ShowSettings()
+    {
+        Debug.Log($"ShowSettings called! SettingsPanel assigned: {settingsPanel != null}");
+
+        if (settingsPanel != null)
+        {
+            settingsPanel.SetActive(true);
+            Debug.Log("Settings panel activated!");
+        }
+        else
+        {
+            Debug.LogWarning("settingsPanel is not assigned!");
+        }
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 
     public void QuitGame()
