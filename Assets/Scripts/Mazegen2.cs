@@ -118,7 +118,38 @@ public class MazeGenerator : MonoBehaviour
     /// <summary>Exposes wall state for external grid queries.</summary>
     public bool HasWall(int x, int y, int dir) => walls[x, y, dir];
 
-    void Start() => GenerateMaze();
+    void Start()
+    {
+        // If the helper has a seed (anything other than 0), use it!
+        if (GameSetup.SelectedSeed != 0)
+        {
+            this.seed = GameSetup.SelectedSeed;
+        }
+        if (GameSetup.MapWidth > 0)
+        {
+            this.width = GameSetup.MapWidth;
+        }
+        if (GameSetup.MapHeight > 0)
+        {
+            this.height = GameSetup.MapHeight;
+        }
+        if(GameSetup.NumDoorsKeys > 0)
+        {
+            this.numKeysAndDoors = GameSetup.NumDoorsKeys;
+        }
+
+        Debug.Log("MazeGenerator: Starting maze generation with seed " + seed);
+        Debug.Log("MazeGenerator: Starting maze generation with width " + width);
+        Debug.Log("MazeGenerator: Starting maze generation with height " + height);
+        //log all of the gamesetup vars
+        Debug.Log("GameSetup width" + GameSetup.MapWidth);
+        Debug.Log("GameSetup height" + GameSetup.MapHeight);
+        Debug.Log("GameSetup DoorsAndKeys" + GameSetup.NumDoorsKeys);
+        Debug.Log("GameSetup SelectedSeed" + GameSetup.SelectedSeed);
+
+        GenerateMaze();
+    }    /// <summary>Call this at any time to (re)generate the maze.</summary>
+
 
     /// <summary>Call this at any time to (re)generate the maze.</summary>
     public void GenerateMaze()
