@@ -34,6 +34,10 @@ public class EnemyController : MonoBehaviour
 
     void Start()
     {
+        // Load enemy move time from GameSetup (settings)
+        moveTime = GameSetup.EnemyMoveTime;
+        Debug.Log($"EnemyController: Enemy moveTime set to {moveTime}");
+
         // agent = GetComponent<NavMeshAgent>();
         // if (agent == null)
         // {
@@ -156,7 +160,8 @@ public class EnemyController : MonoBehaviour
         }
     }
     
-    [SerializeField] private float moveTime = 0.2f; // match your player's moveTime
+    private float moveTime = 0.2f; // match your player's moveTime
+    
     IEnumerator MoveTo(Vector3 target)
     {
         Vector3 start   = transform.position;

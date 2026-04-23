@@ -56,7 +56,7 @@ public class MazeGenerator : MonoBehaviour
 
     [Header("Generation")]
     [Tooltip("Seed for reproducible mazes (0 = random each run)")]
-    public int seed = 0;
+    public int seed = GameSetup.SelectedSeed;
 
     [Tooltip("Visualize generation step-by-step")]
     public bool animateGeneration = false;
@@ -83,14 +83,13 @@ public class MazeGenerator : MonoBehaviour
 
     [Tooltip("Number of keys/doors to place in the maze.")]
     [Range(1, 5)]
-    public int numKeysAndDoors = 2;
+    public int numKeysAndDoors = 0;
 
     [Tooltip("Color for locked doors.")]
     public Color doorColor = new Color(0.8f, 0.4f, 0.1f); // orange
 
     [Tooltip("Color for keys.")]
     public Color keyColor = new Color(1f, 0.8f, 0f); // gold
-
 
 
     // ── Public read-only access to portal world positions ────────────────────
@@ -148,10 +147,8 @@ public class MazeGenerator : MonoBehaviour
         Debug.Log("GameSetup SelectedSeed" + GameSetup.SelectedSeed);
 
         GenerateMaze();
-    }    /// <summary>Call this at any time to (re)generate the maze.</summary>
+    }   
 
-
-    /// <summary>Call this at any time to (re)generate the maze.</summary>
     public void GenerateMaze()
     {
         if (mazeParent != null) Destroy(mazeParent);

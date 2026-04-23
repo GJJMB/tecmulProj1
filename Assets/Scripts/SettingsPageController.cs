@@ -39,7 +39,6 @@ public class SettingsPageController : MonoBehaviour
     public TMP_InputField mazeHeightInput;
     public TMP_InputField numDoorsKeysInput;
     public TMP_InputField mazeSeedInput;
-
     private Resolution[] resolutions;
 
     void Start()
@@ -125,6 +124,13 @@ public class SettingsPageController : MonoBehaviour
         if (volumeSlider != null)
             PlayerPrefs.SetFloat("volume", volumeSlider.value);
         PlayerPrefs.Save();
+
+        // Parse enemy speed
+        float enemySpeed = enemySpeedSlider != null ? enemySpeedSlider.value : 0.2f;
+        enemySpeed = Mathf.Clamp(enemySpeed, 0.05f, 1.0f); // Clamp between reasonable values
+
+        // Save enemy speed to PlayerPrefs
+        PlayerPrefs.SetFloat("enemyMoveTime", enemySpeed);
 
         // Update GameSetup for scene transfer
         GameSetup.MapWidth = mw;
