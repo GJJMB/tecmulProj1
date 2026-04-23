@@ -9,10 +9,23 @@ public class GameOverScreen : MonoBehaviour
     [Tooltip("Name of the main menu scene to return to.")]
     public string mainMenuSceneName = "MainMenu";
 
+    [Header("Audio")]
+    [Tooltip("Sound to play when the player loses.")]
+    public AudioClip loseSound;
+
+    private AudioSource audioSource;
+
     private void Awake()
     {
         if (gameOverPanel != null)
             gameOverPanel.SetActive(false);
+
+        // Get or create an AudioSource for playing lose sound
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
     }
 
     public void ShowGameOverScreen()
@@ -26,6 +39,17 @@ public class GameOverScreen : MonoBehaviour
         else
         {
             Debug.LogWarning("GameOverScreen: gameOverPanel is not assigned!");
+        }
+
+        // Play lose sound
+        if (loseSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(loseSound);
+            Debug.Log("Lose sound played!");
+        }
+        else if (loseSound == null)
+        {
+            Debug.LogWarning("GameOverScreen: loseSound is not assigned!");
         }
 
         Time.timeScale = 0f;

@@ -78,7 +78,7 @@ public class EnemyController : MonoBehaviour
         }
 
         // Assign the grid reference dynamically
-        grid = FindObjectOfType<MazeGridController>();
+        grid = FindFirstObjectByType<MazeGridController>();
         if (grid == null)
         {
             Debug.LogError("EnemyController: MazeGridController not found!");

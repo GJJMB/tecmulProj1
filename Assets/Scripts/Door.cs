@@ -21,10 +21,10 @@ public class Door : MonoBehaviour
     {
         doorCollider = GetComponent<Collider>();
         doorRenderer = GetComponent<Renderer>();
-
         // Start locked
         UpdateDoorState();
     }
+
 
     private void OnTriggerEnter(Collider other)
     {

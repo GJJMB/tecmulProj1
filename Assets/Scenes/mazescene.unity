@@ -569,6 +569,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WinScreen
   winPanel: {fileID: 1368938558}
   mainMenuSceneName: mainmenu
+  winSound: {fileID: 8300000, guid: 31df9e28c8f905c97b7876d16c475f33, type: 3}
 --- !u!1 &396103371
 GameObject:
   m_ObjectHideFlags: 0
@@ -790,6 +791,26 @@ PrefabInstance:
       propertyPath: keyCounterText
       value: 
       objectReference: {fileID: 976392822}
+    - target: {fileID: 7855740434568922825, guid: a076c5ce09885f04ea5fa35d81165032, type: 3}
+      propertyPath: movementSounds.Array.size
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 7855740434568922825, guid: a076c5ce09885f04ea5fa35d81165032, type: 3}
+      propertyPath: 'movementSounds.Array.data[0]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 36d4834bdc5eea1b58f878494095f52a, type: 3}
+    - target: {fileID: 7855740434568922825, guid: a076c5ce09885f04ea5fa35d81165032, type: 3}
+      propertyPath: 'movementSounds.Array.data[1]'
+      value: 
+      objectReference: {fileID: 8300000, guid: 97b4a74d6bc5c3213960b6ab36ff4a2e, type: 3}
+    - target: {fileID: 7855740434568922825, guid: a076c5ce09885f04ea5fa35d81165032, type: 3}
+      propertyPath: 'movementSounds.Array.data[2]'
+      value: 
+      objectReference: {fileID: 8300000, guid: dc14384e7086aa41f9da116f91b0b833, type: 3}
+    - target: {fileID: 7855740434568922825, guid: a076c5ce09885f04ea5fa35d81165032, type: 3}
+      propertyPath: 'movementSounds.Array.data[3]'
+      value: 
+      objectReference: {fileID: 8300000, guid: c89a8fdc46a055a84a53551f4db3dea9, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2147,6 +2168,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameOverScreen
   gameOverPanel: {fileID: 1865079130}
   mainMenuSceneName: mainmenu
+  loseSound: {fileID: 8300000, guid: d15a1750d44ac348b966bf61600d4c6a, type: 3}
 --- !u!114 &1372095868
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -78,6 +78,12 @@ public class SettingsPageController : MonoBehaviour
         numDoorsKeysInput.text = dk.ToString();
         mazeSeedInput.text = seed > 0 ? seed.ToString() : "";
 
+        // Add input validation listeners for maze size fields
+        if (mazeWidthInput != null)
+            mazeWidthInput.onValueChanged.AddListener(ValidateMazeWidthInput);
+        if (mazeHeightInput != null)
+            mazeHeightInput.onValueChanged.AddListener(ValidateMazeHeightInput);
+
         // Also update GameSetup for scene transfer
         GameSetup.MapWidth = mw;
         GameSetup.MapHeight = mh;
@@ -111,10 +117,15 @@ public class SettingsPageController : MonoBehaviour
         int.TryParse(numDoorsKeysInput.text, out dk);
         int.TryParse(mazeSeedInput.text, out seed);
 
-        // Clamp values
-        mw = Mathf.Clamp(mw, 1, 100);
-        mh = Mathf.Clamp(mh, 1, 100);
+        // Clamp values: maze width and height must be between 1 and 50
+        mw = Mathf.Clamp(mw, 1, 50);
+        mh = Mathf.Clamp(mh, 1, 50);
         dk = Mathf.Clamp(dk, 0, 10);
+
+        // Update input fields to show clamped values
+        mazeWidthInput.text = mw.ToString();
+        mazeHeightInput.text = mh.ToString();
+        numDoorsKeysInput.text = dk.ToString();
 
         // Save to PlayerPrefs
         PlayerPrefs.SetInt("mazeWidth", mw);
@@ -125,19 +136,60 @@ public class SettingsPageController : MonoBehaviour
             PlayerPrefs.SetFloat("volume", volumeSlider.value);
         PlayerPrefs.Save();
 
-        // Parse enemy speed
-        float enemySpeed = enemySpeedSlider != null ? enemySpeedSlider.value : 0.2f;
-        enemySpeed = Mathf.Clamp(enemySpeed, 0.05f, 1.0f); // Clamp between reasonable values
-
-        // Save enemy speed to PlayerPrefs
-        PlayerPrefs.SetFloat("enemyMoveTime", enemySpeed);
-
         // Update GameSetup for scene transfer
         GameSetup.MapWidth = mw;
         GameSetup.MapHeight = mh;
         GameSetup.NumDoorsKeys = dk;
         GameSetup.SelectedSeed = seed;
 
-        Debug.Log("Settings applied and saved.");
+        Debug.Log($"Settings applied and saved. Maze size: {mw}x{mh}");
+    }
+
+    /// <summary>Validates maze width input to ensure it's within 1-50 range.</summary>
+    private void ValidateMazeWidthInput(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return;
+
+        if (int.TryParse(value, out int width))
+        {
+            if (width < 1)
+            {
+                mazeWidthInput.text = "1";
+            }
+            else if (width > 50)
+            {
+                mazeWidthInput.text = "50";
+            }
+        }
+        else if (value != "-")
+        {
+            // Remove non-numeric characters (except minus sign which will be rejected)
+            mazeWidthInput.text = System.Text.RegularExpressions.Regex.Replace(value, "[^0-9]", "");
+        }
+    }
+
+    /// <summary>Validates maze height input to ensure it's within 1-50 range.</summary>
+    private void ValidateMazeHeightInput(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return;
+
+        if (int.TryParse(value, out int height))
+        {
+            if (height < 1)
+            {
+                mazeHeightInput.text = "1";
+            }
+            else if (height > 50)
+            {
+                mazeHeightInput.text = "50";
+            }
+        }
+        else if (value != "-")
+        {
+            // Remove non-numeric characters (except minus sign which will be rejected)
+            mazeHeightInput.text = System.Text.RegularExpressions.Regex.Replace(value, "[^0-9]", "");
+        }
     }
 }

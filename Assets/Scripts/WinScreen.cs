@@ -9,10 +9,23 @@ public class WinScreen : MonoBehaviour
     [Tooltip("Name of the main menu scene to return to.")]
     public string mainMenuSceneName = "MainMenu";
 
+    [Header("Audio")]
+    [Tooltip("Sound to play when the player wins.")]
+    public AudioClip winSound;
+
+    private AudioSource audioSource;
+
     private void Awake()
     {
         if (winPanel != null)
             winPanel.SetActive(false);
+
+        // Get or create an AudioSource for playing win sound
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
     }
 
     public void ShowWinScreen()
@@ -27,6 +40,17 @@ public class WinScreen : MonoBehaviour
         else
         {
             Debug.LogWarning("WinScreen: winPanel is not assigned!");
+        }
+
+        // Play win sound
+        if (winSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(winSound);
+            Debug.Log("Win sound played!");
+        }
+        else if (winSound == null)
+        {
+            Debug.LogWarning("WinScreen: winSound is not assigned!");
         }
 
         Time.timeScale = 0f;

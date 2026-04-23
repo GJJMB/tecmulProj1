@@ -21,6 +21,12 @@ public class PlayerController : MonoBehaviour
     [Tooltip("Time in seconds to slide one cell.")]
     public float moveTime = 0.15f;
 
+    [Header("Audio")]
+    [Tooltip("Movement sounds to be played randomly when the player moves. Add as many as you want.")]
+    public System.Collections.Generic.List<AudioClip> movementSounds = new System.Collections.Generic.List<AudioClip>();
+
+    private AudioSource audioSource;
+
     [Header("Events")]
     public UnityEvent onReachedExit;
 
@@ -49,12 +55,19 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         // Automatically find WinScreen anywhere in the scene — no Inspector wiring needed
-        _winScreen = FindObjectOfType<WinScreen>(includeInactive: true);
+        _winScreen = FindFirstObjectByType<WinScreen>();
 
         if (_winScreen == null)
             Debug.LogError("PlayerController: Could not find a WinScreen component anywhere in the scene!");
         else
             Debug.Log($"PlayerController: WinScreen found on '{_winScreen.gameObject.name}'");
+
+        // Get or create an AudioSource for movement sounds
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            audioSource = gameObject.AddComponent<AudioSource>();
+        }
 
         // Snap to entry cell (0, 0) at generation time
         _cellX = 0;
@@ -64,12 +77,12 @@ public class PlayerController : MonoBehaviour
         // Initialize input
         moveAction = new InputAction("Move", InputActionType.Value);
         moveAction.AddCompositeBinding("Dpad")
-            .With("Up",    "<Keyboard>/w")
-            .With("Up",    "<Keyboard>/upArrow")
-            .With("Down",  "<Keyboard>/s")
-            .With("Down",  "<Keyboard>/downArrow")
-            .With("Left",  "<Keyboard>/a")
-            .With("Left",  "<Keyboard>/leftArrow")
+            .With("Up", "<Keyboard>/w")
+            .With("Up", "<Keyboard>/upArrow")
+            .With("Down", "<Keyboard>/s")
+            .With("Down", "<Keyboard>/downArrow")
+            .With("Left", "<Keyboard>/a")
+            .With("Left", "<Keyboard>/leftArrow")
             .With("Right", "<Keyboard>/d")
             .With("Right", "<Keyboard>/rightArrow");
 
@@ -94,6 +107,7 @@ public class PlayerController : MonoBehaviour
         // Check for locked doors
         if (IsDoorBlocking(_cellX, _cellY, dir)) return;
 
+        PlayRandomMovementSound();
         int nx = _cellX + DX[dir];
         int ny = _cellY + DY[dir];
 
@@ -134,7 +148,7 @@ public class PlayerController : MonoBehaviour
         Vector2 move = context.ReadValue<Vector2>();
         if (move == Vector2.zero) return;
 
-        if      (move.y > 0) TryMove(MazeGridController.North);
+        if (move.y > 0) TryMove(MazeGridController.North);
         else if (move.x > 0) TryMove(MazeGridController.East);
         else if (move.y < 0) TryMove(MazeGridController.South);
         else if (move.x < 0) TryMove(MazeGridController.West);
@@ -143,12 +157,12 @@ public class PlayerController : MonoBehaviour
     private IEnumerator SlideTo(Vector3 target)
     {
         _moving = true;
-        Vector3 start   = transform.position;
-        float   elapsed = 0f;
+        Vector3 start = transform.position;
+        float elapsed = 0f;
 
         while (elapsed < moveTime)
         {
-            elapsed           += Time.deltaTime;
+            elapsed += Time.deltaTime;
             transform.position = Vector3.Lerp(start, target, elapsed / moveTime);
             yield return null;
         }
@@ -252,6 +266,17 @@ public class PlayerController : MonoBehaviour
             case 2: return cellCenter + new Vector3(0, 1f, -halfCell); // South
             case 3: return cellCenter + new Vector3(-halfCell, 1f, 0); // West
             default: return cellCenter;
+        }
+    }
+
+    /// <summary>Plays a random movement sound from the available sounds.</summary>
+    private void PlayRandomMovementSound()
+    {
+        // Play a random sound if any are available
+        if (movementSounds.Count > 0 && audioSource != null)
+        {
+            AudioClip randomSound = movementSounds[Random.Range(0, movementSounds.Count)];
+            audioSource.PlayOneShot(randomSound);
         }
     }
 
