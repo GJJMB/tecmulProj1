@@ -9,7 +9,7 @@
 | Nome | Número de Aluno |
 |------|----------------|
 | Gabriel Banks | 29730 |
-| Jõao Fernandes | 29964 |
+| João Fernandes | 29964 |
 
 ---
 
