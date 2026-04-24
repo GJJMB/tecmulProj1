@@ -271,7 +271,7 @@ public class MazeGenerator : MonoBehaviour
 
     // ── Key & Door Placement ─────────────────────────────────────────────────
 
-    /// <summary>Places keys and doors in the maze ensuring umKeysAndDoors <= 0 || (keyPrefab == null && doorPrefab == null)) return;keys are accessible before doors.</summary>
+    /// Places keys and doors in the maze ensuring umKeysAndDoors <= 0 || (keyPrefab == null && doorPrefab == null)) return;keys are accessible before doors.
     /// 
     void PlaceKeysAndDoors()
     {

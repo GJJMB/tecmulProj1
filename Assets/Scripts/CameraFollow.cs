@@ -4,6 +4,7 @@ using UnityEngine;
 /// Simple camera follow script for a top-down maze game.
 /// Attach this to your main camera and assign the player transform in the inspector.
 /// </summary>
+
 public class CameraFollow : MonoBehaviour
 {
     [Header("Target")]
