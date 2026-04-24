@@ -13,7 +13,12 @@ public class WinScreen : MonoBehaviour
     [Tooltip("Sound to play when the player wins.")]
     public AudioClip winSound;
 
+    [Header("Timer")]
+    [Tooltip("UI text to display the completion time.")]
+    public TMPro.TMP_Text timerText;
+
     private AudioSource audioSource;
+    private float _completionTime = 0f;
 
     private void Awake()
     {
@@ -28,9 +33,12 @@ public class WinScreen : MonoBehaviour
         }
     }
 
-    public void ShowWinScreen()
+    public void ShowWinScreen(float completionTime = 0f)
     {
         Debug.Log($"ShowWinScreen called! WinPanel assigned: {winPanel != null}");
+
+        // Store completion time
+        _completionTime = completionTime;
 
         if (winPanel != null)
         {
@@ -41,6 +49,9 @@ public class WinScreen : MonoBehaviour
         {
             Debug.LogWarning("WinScreen: winPanel is not assigned!");
         }
+
+        // Update timer display
+        UpdateTimerDisplay();
 
         // Play win sound
         if (winSound != null && audioSource != null)
@@ -58,6 +69,19 @@ public class WinScreen : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
     }
 
+    /// <summary>Updates the timer display text.</summary>
+    private void UpdateTimerDisplay()
+    {
+        if (timerText != null)
+        {
+            int minutes = (int)(_completionTime / 60f);
+            int seconds = (int)(_completionTime % 60f);
+            int milliseconds = (int)((_completionTime % 1f) * 100f);
+            timerText.text = $"Time Taken: {minutes:00}:{seconds:00}:{milliseconds:00}";
+            Debug.Log($"Timer updated: {timerText.text}");
+        }
+    }
+
     public void HideWinScreen()
     {
         if (winPanel != null)
@@ -69,8 +93,18 @@ public class WinScreen : MonoBehaviour
     public void RestartLevel()
     {
         Time.timeScale = 1f;
+        GameSetup.SelectedSeed = Random.Range(0, 999999); 
+        GameSetup.MapWidth = Random.Range(10, 30);
+        GameSetup.MapHeight = Random.Range(10, 30);
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
+
+    public void RetryLevel()
+    {
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
 
     public void ReturnToMainMenu()
     {

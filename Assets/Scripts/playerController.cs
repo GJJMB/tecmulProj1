@@ -45,6 +45,8 @@ public class PlayerController : MonoBehaviour
     private int _spawnedEnemies = 0;
     private bool _moving;
     private WinScreen _winScreen;
+    private float _elapsedTime = 0f;
+    private bool _timerActive = false;
 
     // Direction vectors matching MazeGenerator's N/E/S/W order
     private static readonly int[] DX = { 0, 1, 0, -1 };
@@ -89,6 +91,10 @@ public class PlayerController : MonoBehaviour
         moveAction.performed += OnMovePerformed;
         moveAction.Enable();
 
+        // Start the timer
+        _elapsedTime = 0f;
+        _timerActive = true;
+
         // Initialize UI
         UpdateKeyUI();
     }
@@ -96,6 +102,11 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         // Input handled via Input System callbacks
+        // Update timer
+        if (_timerActive)
+        {
+            _elapsedTime += Time.deltaTime;
+        }
     }
 
     /// <summary>Call this from UI buttons as well (pass 0-3 for N/E/S/W).</summary>
@@ -180,14 +191,23 @@ public class PlayerController : MonoBehaviour
     {
         Debug.Log($"OnReachedExit called! Position: ({_cellX}, {_cellY}), WinScreen found: {_winScreen != null}");
 
+        // Stop the timer
+        _timerActive = false;
+
         if (_winScreen != null)
         {
-            _winScreen.ShowWinScreen();
+            _winScreen.ShowWinScreen(_elapsedTime);
         }
         else
         {
             Debug.LogError("PlayerController: WinScreen not found in scene!");
         }
+    }
+
+    /// <summary>Gets the elapsed time since the game started.</summary>
+    public float GetElapsedTime()
+    {
+        return _elapsedTime;
     }
 
     // ── Key System ───────────────────────────────────────────────────────────

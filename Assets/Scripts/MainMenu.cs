@@ -16,6 +16,22 @@ public class MainMenu : MonoBehaviour
     {
         if (string.IsNullOrEmpty(gameSceneName))
         {
+            if(GameSetup.SelectedSeed != 0)
+            {
+                GameSetup.SelectedSeed = Random.Range(0, 999999);
+            }
+            if(GameSetup.MapWidth < 10)
+            {
+                GameSetup.MapWidth = Random.Range(10, 30);
+            }
+            if(GameSetup.MapHeight < 10)
+            {
+                GameSetup.MapHeight = Random.Range(10, 30);
+            }
+            if(GameSetup.NumDoorsKeys < 1)
+            {
+                GameSetup.NumDoorsKeys = Random.Range(1, 10);
+            }
             Debug.LogWarning("MainMenu: gameSceneName is not assigned.");
             return;
         }

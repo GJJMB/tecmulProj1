@@ -118,8 +118,8 @@ public class SettingsPageController : MonoBehaviour
         int.TryParse(mazeSeedInput.text, out seed);
 
         // Clamp values: maze width and height must be between 1 and 50
-        mw = Mathf.Clamp(mw, 1, 50);
-        mh = Mathf.Clamp(mh, 1, 50);
+        mw = Mathf.Clamp(mw, 10, 50);
+        mh = Mathf.Clamp(mh, 10, 50);
         dk = Mathf.Clamp(dk, 0, 10);
 
         // Update input fields to show clamped values
@@ -155,7 +155,7 @@ public class SettingsPageController : MonoBehaviour
         {
             if (width < 1)
             {
-                mazeWidthInput.text = "1";
+                mazeWidthInput.text = "10";
             }
             else if (width > 50)
             {
@@ -179,7 +179,7 @@ public class SettingsPageController : MonoBehaviour
         {
             if (height < 1)
             {
-                mazeHeightInput.text = "1";
+                mazeHeightInput.text = "10";
             }
             else if (height > 50)
             {
